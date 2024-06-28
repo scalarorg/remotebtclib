@@ -1,0 +1,21 @@
+{
+  "name": "libconsumer",
+  "version": "2.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx ts-node somefile",
+    "linklib": "npm run --prefix ../library-starter build && npm link ../library-starter",
+    "install-beta": "npm install hwrld@beta",
+    "install-lib": "npm install hwrld"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "hwrld": "2.2.1"
+  },
+  "devDependencies": {
+    "ts-node": "10.9.1",
+    "typescript": "5.2.2"
+  }
+}
