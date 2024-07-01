@@ -2,7 +2,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "@unisat/wallet-sdk/lib/utils";
 import { StakingScript } from "../type/stakingType";
 import { LEAF_VERSION_TAPSCRIPT, NUMS } from "../taproot/bip341";
-import { SpendingLeaves } from "../type/spendType";
+import { Leaf, SpendingLeaves } from "../type/spendType";
 
 export class StakerScript {
   #stakerPubKey: Buffer;
@@ -85,7 +85,7 @@ export class SpendScript {
     this.#tapTree = tapTree;
     this.#networkType = networkType;
   }
-  buildingLeaf(script: Buffer) {
+  buildingLeaf(script: Buffer): Leaf {
     const redeem = {
       output: script,
       redeemVersion: LEAF_VERSION_TAPSCRIPT,

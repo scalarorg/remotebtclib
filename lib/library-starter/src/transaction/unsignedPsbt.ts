@@ -7,8 +7,6 @@ import { NUMS } from "../taproot/bip341";
 import { toXOnly } from "@unisat/wallet-sdk/lib/utils";
 import * as bitcoin from "bitcoinjs-lib";
 import { SpendingLeaves } from "../type/spendType";
-import { buffer } from "stream/consumers";
-import { tweakSigner } from "@unisat/wallet-sdk/lib/utils";
 
 export async function getTaprootAddress(
   stakerPubKey: Buffer,
@@ -16,7 +14,7 @@ export async function getTaprootAddress(
   protocolPubkey: Buffer,
   timeLock: number,
   networkType: bitcoin.Network // use bitcoinjs-lib network
-): Promise<any> {
+): Promise<bitcoin.payments.Payment> {
   const tapLeaves = new scripts.StakerScript(
     stakerPubKey,
     covenantPubkey,
@@ -51,7 +49,7 @@ export async function getTapLeafScript(
   protocolPubkey: Buffer,
   timeLock: number,
   networkType: bitcoin.Network
-): Promise<any> {
+): Promise<SpendingLeaves> {
   const tapLeaves = new scripts.StakerScript(
     stakerPubKey,
     covenantPubkey,
@@ -127,7 +125,7 @@ export class StakingTransaction {
 
     const tos = [
       {
-        address: script_p2tr.address,
+        address: script_p2tr.address!,
         satoshis: amount,
       },
     ];
@@ -156,7 +154,10 @@ export class StakingTransaction {
     stakerPubKey: Buffer;
     covenantPubkey: Buffer;
     protocolPubkey: Buffer;
-  }) {
+  }): Promise<{
+    psbt: import("bitcoinjs-lib").Psbt;
+    toSignInputs: ToSignInput[];
+  }> {
     const txb = new bitcoin.Psbt({ network: this.#networkType });
     // Default setting
     txb.setVersion(2);
@@ -211,7 +212,10 @@ export class StakingTransaction {
     covenantPubkey: Buffer;
     protocolPubkey: Buffer;
     burnAddress: string;
-  }): Promise<any>{
+  }): Promise<{
+    psbt: import("bitcoinjs-lib").Psbt;
+    toSignInputs: ToSignInput[];
+  }> {
     const txb = new bitcoin.Psbt({ network: this.#networkType });
     // Default setting
     txb.setVersion(2);
@@ -236,7 +240,7 @@ export class StakingTransaction {
         sequence: 0xfffffffd, // big endian
       },
     ]);
-    const fee = 6000;
+    const fee = 10000;
     txb.addOutputs([
       {
         address: burnAddress,
@@ -259,7 +263,7 @@ export class StakingTransaction {
     stakerPubKey: Buffer,
     covenantPubkey: Buffer,
     protocolPubkey: Buffer
-  ) {
+  ): Promise<bitcoin.payments.Payment> {
     const script_p2tr = await getTaprootAddress(
       stakerPubKey,
       covenantPubkey,
@@ -273,7 +277,7 @@ export class StakingTransaction {
     stakerPubKey: Buffer,
     covenantPubkey: Buffer,
     protocolPubkey: Buffer
-  ) {
+  ): Promise<SpendingLeaves> {
     const tapScripts = await getTapLeafScript(
       stakerPubKey,
       covenantPubkey,
