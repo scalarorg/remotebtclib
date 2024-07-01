@@ -10,7 +10,7 @@ async function test() {
   const btcUtxos = await openapi.getAddressUtxoData(
     "tb1q6md087afzhld06e63rv9p7kvh87spkchyguwg0"
   );
-  const { psbt, toSignInputs } = await mylib.transaction.unsignedPsbt.getUnsignedPsbt({
+  const { psbt, toSignInputs } = await mylib.unsignedTransaction.g({
     btcUtxos: btcUtxos.utxo.map((v: any) => ({
       txid: v.txid,
       vout: v.vout,

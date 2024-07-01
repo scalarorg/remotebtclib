@@ -222,6 +222,13 @@
     "@noble/hashes" "~1.4.0"
     "@scure/base" "~1.1.6"
 
+"@types/node@^20.14.9":
+  version "20.14.9"
+  resolved "https://registry.npmjs.org/@types/node/-/node-20.14.9.tgz"
+  integrity sha512-06OCtnTXtWOZBJlRApleWndH4JsRVs1pDCc8dLSQp+7PpUpX3ePdHyeNSFTeSe7FtKyQkrlPvHwJOW3SLd8Oyg==
+  dependencies:
+    undici-types "~5.26.4"
+
 "@unisat/wallet-sdk@^1.7.1":
   version "1.7.1"
   resolved "https://registry.npmjs.org/@unisat/wallet-sdk/-/wallet-sdk-1.7.1.tgz"
@@ -937,6 +944,11 @@ uint8array-tools@0.0.7:
   version "0.0.7"
   resolved "https://registry.npmjs.org/uint8array-tools/-/uint8array-tools-0.0.7.tgz"
   integrity sha512-vrrNZJiusLWoFWBqz5Y5KMCgP9W9hnjZHzZiZRT8oNAkq3d5Z5Oe76jAvVVSRh4U8GGR90N2X1dWtrhvx6L8UQ==
+
+undici-types@~5.26.4:
+  version "5.26.5"
+  resolved "https://registry.npmjs.org/undici-types/-/undici-types-5.26.5.tgz"
+  integrity sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==
 
 util-deprecate@^1.0.1:
   version "1.0.2"
