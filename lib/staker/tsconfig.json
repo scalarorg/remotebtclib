@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
     "target": "es2016",
     "module": "commonjs",
     "esModuleInterop": true,
@@ -9,5 +11,6 @@
     "isolatedModules": true,
     "declaration": true
   },
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

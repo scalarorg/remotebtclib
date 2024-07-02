@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "npx ts-node somefile",
-    "linklib": "npm run --prefix ../library-starter build && npm link ../library-starter",
-    "install-beta": "npm install hwrld@beta",
-    "install-lib": "npm install hwrld"
+    "linklib": "npm run --prefix ../staker build && npm link ../staker",
+    "install-beta": "npm install staker@beta",
+    "install-lib": "npm install staker"
   },
   "author": "",
   "license": "ISC",
