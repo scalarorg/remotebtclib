@@ -131,13 +131,18 @@ export class StakingTransaction {
     ];
 
     // unisat - sendBTC
+    let network;
+    if (this.#networkType === bitcoin.networks.testnet) {
+      network = NetworkType.TESTNET;
+    } else if (this.#networkType === bitcoin.networks.regtest) {
+      network = NetworkType.REGTEST;
+    } else {
+      network = NetworkType.MAINNET;
+    }
     const { psbt, toSignInputs } = await sendBTC({
       btcUtxos,
       tos,
-      networkType:
-        this.#networkType === bitcoin.networks.testnet
-          ? NetworkType.TESTNET
-          : NetworkType.MAINNET,
+      networkType: network,
       changeAddress: this.#changeAddress,
       feeRate: this.#feeRate,
       enableRBF: this.#enableRBF,
