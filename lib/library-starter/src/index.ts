@@ -1,6 +1,7 @@
-import { ToSignInput, UnspentOutput } from "@unisat/wallet-sdk";
+import { ToSignInput } from "@unisat/wallet-sdk";
 import { decodeAddress } from "@unisat/wallet-sdk/lib/address";
 import * as bitcoin from "bitcoinjs-lib";
+import { estimateFee } from "./transaction/estimate";
 
 import * as unsignedTransaction from "./transaction/unsignedPsbt";
 export * as unsignedTransaction from "./transaction/unsignedPsbt";
@@ -31,17 +32,18 @@ export class UNISATStaker {
     this.#timeLock = timeLock;
     this.#feeRate = feeRate;
   }
+  // Include fee
   async getUnsignedStakingPsbt(
-    btcUtxos: UnspentOutput[],
-    toAmount: number,
+    btcUtxos: any,
+    toAmount: number
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const staker = await this.getStaker();
     const addressType = decodeAddress(this.#stakerAddress).addressType;
     const { psbt, toSignInputs } = await staker.getStakingPsbt({
-      btcUtxos: btcUtxos.map((v) => ({
+      btcUtxos: btcUtxos.map((v: any) => ({
         txid: v.txid,
         vout: v.vout,
-        satoshis: v.satoshis,
+        satoshis: v.satoshi,
         scriptPk: v.scriptPk,
         pubkey: this.#stakerPubkey,
         addressType,
@@ -57,12 +59,12 @@ export class UNISATStaker {
     return { psbt, toSignInputs };
   }
 
-  async getUnsignedUnstakingPsbt(
-    signedStakingPsbtHex: string
+  async getUnsignedUnstakingPsbtNoFee(
+    signedStakingTransactionHex: string
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const staker = await this.getStaker();
     const { psbt, toSignInputs } = await staker.getUnstakingPsbt({
-      preUtxoHex: signedStakingPsbtHex,
+      preUtxoHex: signedStakingTransactionHex,
       stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
       covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
@@ -70,7 +72,24 @@ export class UNISATStaker {
     return { psbt, toSignInputs };
   }
 
-  async getUnsignedSlashingPsbt(
+  async getUnsignedUnstakingPsbt(
+    signedStakingTransactionHex: string,
+    noFeePsbtHex: string
+  ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
+    const tx = bitcoin.Psbt.fromHex(noFeePsbtHex).extractTransaction().toHex();
+    const fee = await estimateFee(tx, this.#feeRate);
+    const staker = await this.getStaker();
+    const { psbt, toSignInputs } = await staker.getUnstakingPsbt({
+      preUtxoHex: signedStakingTransactionHex,
+      stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
+      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
+      protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      fee,
+    });
+    return { psbt, toSignInputs };
+  }
+
+  async getUnsignedSlashingPsbtNoFee(
     signedStakingPsbtHex: string,
     burnAddress: string
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
@@ -81,6 +100,25 @@ export class UNISATStaker {
       covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
       burnAddress: burnAddress,
+    });
+    return { psbt, toSignInputs };
+  }
+
+  async getUnsignedSlashingPsbt(
+    signedStakingPsbtHex: string,
+    burnAddress: string,
+    noFeePsbtHex: string
+  ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
+    const tx = bitcoin.Psbt.fromHex(noFeePsbtHex).extractTransaction().toHex();
+    const fee = await estimateFee(tx, this.#feeRate);
+    const staker = await this.getStaker();
+    const { psbt, toSignInputs } = await staker.getSlashingPsbt({
+      preUtxoHex: signedStakingPsbtHex,
+      stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
+      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
+      protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      burnAddress: burnAddress,
+      fee,
     });
     return { psbt, toSignInputs };
   }

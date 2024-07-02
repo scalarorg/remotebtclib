@@ -3,7 +3,7 @@ import { UnspentOutput } from "@unisat/wallet-sdk";
 import { sendBTC } from "@unisat/wallet-sdk/lib/tx-helpers";
 import { ToSignInput } from "@unisat/wallet-sdk";
 import * as scripts from "./scripts";
-import { NUMS } from "../taproot/bip341";
+import { NUMS } from "../bip/bip341";
 import { toXOnly } from "@unisat/wallet-sdk/lib/utils";
 import * as bitcoin from "bitcoinjs-lib";
 import { SpendingLeaves } from "../type/spendType";
@@ -129,7 +129,6 @@ export class StakingTransaction {
         satoshis: amount,
       },
     ];
-
     // unisat - sendBTC
     let network;
     if (this.#networkType === bitcoin.networks.testnet) {
@@ -154,11 +153,13 @@ export class StakingTransaction {
     stakerPubKey,
     covenantPubkey,
     protocolPubkey,
+    fee = 0,
   }: {
     preUtxoHex: string;
     stakerPubKey: Buffer;
     covenantPubkey: Buffer;
     protocolPubkey: Buffer;
+    fee?: number;
   }): Promise<{
     psbt: import("bitcoinjs-lib").Psbt;
     toSignInputs: ToSignInput[];
@@ -187,7 +188,6 @@ export class StakingTransaction {
         sequence: this.#timeLock, // big endian
       },
     ]);
-    const fee = 6000;
     txb.addOutputs([
       {
         address: this.#changeAddress,
@@ -211,12 +211,14 @@ export class StakingTransaction {
     covenantPubkey,
     protocolPubkey,
     burnAddress, // partial or full ?
+    fee = 0,
   }: {
     preUtxoHex: string;
     stakerPubKey: Buffer;
     covenantPubkey: Buffer;
     protocolPubkey: Buffer;
     burnAddress: string;
+    fee?: number;
   }): Promise<{
     psbt: import("bitcoinjs-lib").Psbt;
     toSignInputs: ToSignInput[];
@@ -245,7 +247,6 @@ export class StakingTransaction {
         sequence: 0xfffffffd, // big endian
       },
     ]);
-    const fee = 10000;
     txb.addOutputs([
       {
         address: burnAddress,
