@@ -1,7 +1,7 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "@unisat/wallet-sdk/lib/utils";
 import { StakingScript } from "../type/stakingType";
-import { LEAF_VERSION_TAPSCRIPT, NUMS } from "../taproot/bip341";
+import { LEAF_VERSION_TAPSCRIPT, NUMS } from "../bip/bip341";
 import { Leaf, SpendingLeaves } from "../type/spendType";
 
 export class StakerScript {
