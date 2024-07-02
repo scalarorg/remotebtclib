@@ -21,8 +21,8 @@ export class UNISATStaker {
     covenantPubkey: string,
     protocolPubkey: string,
     networkType: bitcoin.Network,
-    feeRate: number,
-    timeLock: number
+    timeLock: number,
+    feeRate: number
   ) {
     this.#stakerAddress = stakerAddress;
     this.#stakerPubkey = stakerPubkey;
