@@ -10,36 +10,36 @@ export * as unsignedTransaction from "./transaction/unsignedPsbt";
 export class UNISATStaker {
   #stakerAddress: string; // unisat.getAccount()
   #stakerPubkey: string; // unisat.getPublickey()
-  #covenantPubkey: string; // unisat.getPublickey()
   #protocolPubkey: string; // unisat.getPublickey()
+  #covenantPubkey: string[]; 
+  #qorum : number;
   #networkType: bitcoin.Network;
-  #timeLock: number;
   #feeRate: number;
   constructor(
     stakerAddress: string,
     stakerPubkey: string,
-    covenantPubkey: string,
     protocolPubkey: string,
+    covenantPubkey: string[],
+    qorum: number,
     networkType: bitcoin.Network,
-    timeLock: number,
     feeRate: number
   ) {
     this.#stakerAddress = stakerAddress;
     this.#stakerPubkey = stakerPubkey;
-    this.#covenantPubkey = covenantPubkey;
     this.#protocolPubkey = protocolPubkey;
+    this.#covenantPubkey = covenantPubkey;
+    this.#qorum = qorum;
     this.#networkType = networkType;
-    this.#timeLock = timeLock;
     this.#feeRate = feeRate;
   }
   // Include fee
-  async getUnsignedStakingPsbt(
+  async getUnsignedVaultPsbt(
     btcUtxos: any,
     toAmount: number
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const staker = await this.getStaker();
     const addressType = decodeAddress(this.#stakerAddress).addressType;
-    const { psbt, toSignInputs } = await staker.getStakingPsbt({
+    const { psbt, toSignInputs } = await staker.getVaultPsbt({
       btcUtxos: btcUtxos.map((v: any) => ({
         txid: v.txid,
         vout: v.vout,
@@ -53,84 +53,107 @@ export class UNISATStaker {
       })),
       amount: toAmount,
       stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
-      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      covenantPubkey: this.#covenantPubkey.map((v) => Buffer.from(v, "hex")),
+      qorum: this.#qorum,
     });
     return { psbt, toSignInputs };
   }
 
-  async getUnsignedUnstakingPsbtNoFee(
-    signedStakingTransactionHex: string
+  async getUnsignedBurningPsbtNoFee(
+    signedVaultTransactionHex: string
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const staker = await this.getStaker();
-    const { psbt, toSignInputs } = await staker.getUnstakingPsbt({
-      preUtxoHex: signedStakingTransactionHex,
+    const { psbt, toSignInputs } = await staker.getBurningPsbt({
+      preUtxoHex: signedVaultTransactionHex,
       stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
-      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      covenantPubkey: this.#covenantPubkey.map((v) => Buffer.from(v, "hex")),
+      qorum: this.#qorum,
     });
     return { psbt, toSignInputs };
   }
 
-  async getUnsignedUnstakingPsbt(
-    signedStakingTransactionHex: string,
+  async getUnsignedBurningPsbt(
+    signedVaultTransactionHex: string,
     noFeePsbtHex: string
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const tx = bitcoin.Psbt.fromHex(noFeePsbtHex).extractTransaction().toHex();
     const fee = await estimateFee(tx, this.#feeRate);
     const staker = await this.getStaker();
-    const { psbt, toSignInputs } = await staker.getUnstakingPsbt({
-      preUtxoHex: signedStakingTransactionHex,
+    const { psbt, toSignInputs } = await staker.getBurningPsbt({
+      preUtxoHex: signedVaultTransactionHex,
       stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
-      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      covenantPubkey: this.#covenantPubkey.map((v) => Buffer.from(v, "hex")),
+      qorum: this.#qorum,
       fee,
     });
     return { psbt, toSignInputs };
   }
 
-  async getUnsignedSlashingPsbtNoFee(
-    signedStakingPsbtHex: string,
+  async getUnsignedSlashingOrLostKeyPsbtNoFee(
+    signedVaultPsbtHex: string,
     burnAddress: string
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const staker = await this.getStaker();
-    const { psbt, toSignInputs } = await staker.getSlashingPsbt({
-      preUtxoHex: signedStakingPsbtHex,
+    const { psbt, toSignInputs } = await staker.getSlashingOrLostKeyPsbt({
+      preUtxoHex: signedVaultPsbtHex,
       stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
-      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      covenantPubkey: this.#covenantPubkey.map((v) => Buffer.from(v, "hex")),
+      qorum: this.#qorum,
       burnAddress: burnAddress,
     });
     return { psbt, toSignInputs };
   }
 
-  async getUnsignedSlashingPsbt(
-    signedStakingPsbtHex: string,
+  async getUnsignedSlashingOrLostKeyPsbt(
+    signedVaultPsbtHex: string,
     burnAddress: string,
     noFeePsbtHex: string
   ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
     const tx = bitcoin.Psbt.fromHex(noFeePsbtHex).extractTransaction().toHex();
     const fee = await estimateFee(tx, this.#feeRate);
     const staker = await this.getStaker();
-    const { psbt, toSignInputs } = await staker.getSlashingPsbt({
-      preUtxoHex: signedStakingPsbtHex,
+    const { psbt, toSignInputs } = await staker.getSlashingOrLostKeyPsbt({
+      preUtxoHex: signedVaultPsbtHex,
       stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
-      covenantPubkey: Buffer.from(this.#covenantPubkey, "hex"),
       protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      covenantPubkey: this.#covenantPubkey.map((v) => Buffer.from(v, "hex")),
+      qorum: this.#qorum,
       burnAddress: burnAddress,
       fee,
     });
     return { psbt, toSignInputs };
   }
 
-  setCovenantPubkey(covenantPubkey: string): void {
-    this.#covenantPubkey = covenantPubkey;
+  async getUnsignedBurnWithoutDAppPsbtNoFee(
+    signedVaultPsbtHex: string,
+    burnAddress: string
+  ): Promise<{ psbt: bitcoin.Psbt; toSignInputs: ToSignInput[] }> {
+    const staker = await this.getStaker();
+    const { psbt, toSignInputs } = await staker.getBurnWithoutDAppPsbt({
+      preUtxoHex: signedVaultPsbtHex,
+      stakerPubKey: Buffer.from(this.#stakerPubkey, "hex"),
+      protocolPubkey: Buffer.from(this.#protocolPubkey, "hex"),
+      covenantPubkey: this.#covenantPubkey.map((v) => Buffer.from(v, "hex")),
+      qorum: this.#qorum,
+      burnAddress: burnAddress,
+    });
+    return { psbt, toSignInputs };
+  }
+
+  setCovenantPubkey(covenantPubkey: string[]): void {
+    for (let i = 0; i < covenantPubkey.length; i++) {
+      this.#covenantPubkey[i] = covenantPubkey[i];
+    }
   }
   setProtocolPubkey(protocolPubkey: string): void {
     this.#protocolPubkey = protocolPubkey;
   }
-  setTimeLock(timeLock: number): void {
-    this.#timeLock = timeLock;
+  setQorum(qorum: number): void {
+    this.#qorum = qorum;
   }
   setFeeRate(feeRate: number): void {
     this.#feeRate = feeRate;
@@ -138,18 +161,17 @@ export class UNISATStaker {
   async getProtocolPubkey(): Promise<string> {
     return this.#protocolPubkey;
   }
-  async getTimeLock(): Promise<number> {
-    return this.#timeLock;
+  async getQorum(): Promise<number> {
+    return this.#qorum;
   }
   async getFeeRate(): Promise<number> {
     return this.#feeRate;
   }
-  async getStaker(): Promise<unsignedTransaction.StakingTransaction> {
-    return new unsignedTransaction.StakingTransaction(
+  async getStaker(): Promise<unsignedTransaction.VaultTransaction> {
+    return new unsignedTransaction.VaultTransaction(
       this.#networkType,
       this.#stakerAddress,
       this.#feeRate,
-      this.#timeLock
     );
   }
 }

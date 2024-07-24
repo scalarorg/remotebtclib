@@ -4,7 +4,7 @@ export interface Leaf {
   controlBlock: Buffer;
 }
 export interface SpendingLeaves {
-  timeLockLeaf: Leaf;
-  unBondingLeaf: Leaf;
-  slashingLeaf: Leaf;
+  burningLeaf: Leaf;
+  slashingOrLostKeyLeaf: Leaf;
+  burnWithoutDAppLeaf: Leaf;
 }
