@@ -10,27 +10,27 @@ import { SpendingLeaves } from "../type/spendType";
 
 export async function getTaprootAddress(
   stakerPubKey: Buffer,
-  covenantPubkey: Buffer,
   protocolPubkey: Buffer,
-  timeLock: number,
+  covenantPubkey: Buffer[],
+  qorum: number,
   networkType: bitcoin.Network // use bitcoinjs-lib network
 ): Promise<bitcoin.payments.Payment> {
   const tapLeaves = new scripts.StakerScript(
     stakerPubKey,
-    covenantPubkey,
     protocolPubkey,
-    timeLock
+    covenantPubkey,
+    qorum
   ).buildingScript();
   const tapTree: any = [
     {
-      output: tapLeaves.timeLockScript,
+      output: tapLeaves.burnWithoutDAppScript,
     },
     [
       {
-        output: tapLeaves.unBondingScript,
+        output: tapLeaves.slashingOrLostKeyScript,
       },
       {
-        output: tapLeaves.slashingScript,
+        output: tapLeaves.burningScript,
       },
     ],
   ];
@@ -45,82 +45,82 @@ export async function getTaprootAddress(
 
 export async function getTapLeafScript(
   stakerPubKey: Buffer,
-  covenantPubkey: Buffer,
   protocolPubkey: Buffer,
-  timeLock: number,
+  covenantPubkey: Buffer[],
+  qorum: number,
   networkType: bitcoin.Network
 ): Promise<SpendingLeaves> {
   const tapLeaves = new scripts.StakerScript(
     stakerPubKey,
-    covenantPubkey,
     protocolPubkey,
-    timeLock
+    covenantPubkey,
+    qorum
   ).buildingScript();
   const tapTree: any = [
     {
-      output: tapLeaves.timeLockScript,
+      output: tapLeaves.burnWithoutDAppScript,
     },
     [
       {
-        output: tapLeaves.unBondingScript,
+        output: tapLeaves.slashingOrLostKeyScript,
       },
       {
-        output: tapLeaves.slashingScript,
+        output: tapLeaves.burningScript,
       },
     ],
   ];
   const tapScripts = new scripts.SpendScript(
-    tapLeaves.timeLockScript,
-    tapLeaves.unBondingScript,
-    tapLeaves.slashingScript,
+    tapLeaves.burningScript,
+    tapLeaves.slashingOrLostKeyScript,
+    tapLeaves.burnWithoutDAppScript,
     tapTree,
     networkType
   ).bulidingLeaves();
   return tapScripts;
 }
 
-export class StakingTransaction {
+export class VaultTransaction {
   #networkType: bitcoin.Network;
   #changeAddress: string; // staker address
   #feeRate: number;
-  #timeLock: number;
   #enableRBF: boolean;
   constructor(
     networkType: bitcoin.Network,
     changeAddress: string,
     feeRate: number,
-    timeLock: number,
     enableRBF: boolean = true
   ) {
     this.#networkType = networkType;
     this.#changeAddress = changeAddress;
     this.#feeRate = feeRate;
-    this.#timeLock = timeLock;
     this.#enableRBF = enableRBF;
   }
   // Get input base on @unisat - Staking Transaction: unbonding + slashing
   // Unbonding Transaction: allow output to be spent after a certain time - called UnStaking Transaction
   // Slashing Transaction: allow staker the staker to burn the fund - called Slashing Transaction
-  async getStakingPsbt({
+  async getVaultPsbt({
     btcUtxos,
     amount,
     stakerPubKey,
-    covenantPubkey,
     protocolPubkey,
+    covenantPubkey,
+    qorum,
   }: {
     btcUtxos: UnspentOutput[];
     amount: number;
     stakerPubKey: Buffer;
-    covenantPubkey: Buffer;
     protocolPubkey: Buffer;
+    covenantPubkey: Buffer[];
+    qorum: number;
   }): Promise<{
     psbt: import("bitcoinjs-lib").Psbt;
     toSignInputs: ToSignInput[];
   }> {
     const script_p2tr = await this.getScriptP2TR(
       stakerPubKey,
+      protocolPubkey,
       covenantPubkey,
-      protocolPubkey
+      qorum,
     );
 
     const tos = [
@@ -148,17 +148,19 @@ export class StakingTransaction {
     });
     return { psbt, toSignInputs };
   }
-  async getUnstakingPsbt({
+  async getBurningPsbt({
     preUtxoHex,
     stakerPubKey,
-    covenantPubkey,
     protocolPubkey,
+    covenantPubkey,
+    qorum,
     fee = 0,
   }: {
     preUtxoHex: string;
     stakerPubKey: Buffer;
-    covenantPubkey: Buffer;
     protocolPubkey: Buffer;
+    covenantPubkey: Buffer[];
+    qorum: number;
     fee?: number;
   }): Promise<{
     psbt: import("bitcoinjs-lib").Psbt;
@@ -172,8 +174,9 @@ export class StakingTransaction {
     const preUTXO = bitcoin.Transaction.fromHex(preUtxoHex);
     const tapLeavesScript = await this.getTapLeavesScript(
       stakerPubKey,
+      protocolPubkey,
       covenantPubkey,
-      protocolPubkey
+      qorum
     );
 
     txb.addInputs([
@@ -184,8 +187,8 @@ export class StakingTransaction {
           script: preUTXO.outs[0].script,
           value: preUTXO.outs[0].value,
         },
-        tapLeafScript: [tapLeavesScript.timeLockLeaf],
-        sequence: this.#timeLock, // big endian
+        tapLeafScript: [tapLeavesScript.burningLeaf],
+        sequence:  0xfffffffd, // big endian
       },
     ]);
     txb.addOutputs([
@@ -205,18 +208,20 @@ export class StakingTransaction {
       ],
     };
   }
-  async getSlashingPsbt({
+  async getSlashingOrLostKeyPsbt({
     preUtxoHex,
     stakerPubKey,
     covenantPubkey,
     protocolPubkey,
+    qorum,
     burnAddress, // partial or full ?
     fee = 0,
   }: {
     preUtxoHex: string;
     stakerPubKey: Buffer;
-    covenantPubkey: Buffer;
     protocolPubkey: Buffer;
+    covenantPubkey: Buffer[];
+    qorum: number;
     burnAddress: string;
     fee?: number;
   }): Promise<{
@@ -231,8 +236,9 @@ export class StakingTransaction {
     const preUTXO = bitcoin.Transaction.fromHex(preUtxoHex);
     const tapLeavesScript = await this.getTapLeavesScript(
       stakerPubKey,
+      protocolPubkey,
       covenantPubkey,
-      protocolPubkey
+      qorum
     );
 
     txb.addInputs([
@@ -243,7 +249,70 @@ export class StakingTransaction {
           script: preUTXO.outs[0].script,
           value: preUTXO.outs[0].value,
         },
-        tapLeafScript: [tapLeavesScript.slashingLeaf],
+        tapLeafScript: [tapLeavesScript.slashingOrLostKeyLeaf],
+        sequence: 0xfffffffd, // big endian
+      },
+    ]);
+    txb.addOutputs([
+      {
+        address: burnAddress,
+        value: preUTXO.outs[0].value - fee, // Amount in satoshis
+      },
+    ]);
+    return {
+      psbt: txb,
+      toSignInputs: [
+        {
+          index: 0,
+          publicKey: stakerPubKey.toString("hex"),
+          disableTweakSigner: true,
+        },
+      ],
+    };
+  }
+
+  async getBurnWithoutDAppPsbt({
+    preUtxoHex,
+    stakerPubKey,
+    covenantPubkey,
+    protocolPubkey,
+    qorum,
+    burnAddress, // partial or full ?
+    fee = 0,
+  }: {
+    preUtxoHex: string;
+    stakerPubKey: Buffer;
+    protocolPubkey: Buffer;
+    covenantPubkey: Buffer[];
+    qorum: number;
+    burnAddress: string;
+    fee?: number;
+  }): Promise<{
+    psbt: import("bitcoinjs-lib").Psbt;
+    toSignInputs: ToSignInput[];
+  }> {
+    const txb = new bitcoin.Psbt({ network: this.#networkType });
+    // Default setting
+    txb.setVersion(2);
+    txb.setLocktime(0);
+
+    const preUTXO = bitcoin.Transaction.fromHex(preUtxoHex);
+    const tapLeavesScript = await this.getTapLeavesScript(
+      stakerPubKey,
+      protocolPubkey,
+      covenantPubkey,
+      qorum
+    );
+
+    txb.addInputs([
+      {
+        hash: preUTXO.getId(),
+        index: 0, // Index of the output in the previous transaction
+        witnessUtxo: {
+          script: preUTXO.outs[0].script,
+          value: preUTXO.outs[0].value,
+        },
+        tapLeafScript: [tapLeavesScript.burnWithoutDAppLeaf],
         sequence: 0xfffffffd, // big endian
       },
     ]);
@@ -267,28 +336,30 @@ export class StakingTransaction {
 
   async getScriptP2TR(
     stakerPubKey: Buffer,
-    covenantPubkey: Buffer,
-    protocolPubkey: Buffer
+    protocolPubkey: Buffer,
+    covenantPubkey: Buffer[],
+    qorum: number,
   ): Promise<bitcoin.payments.Payment> {
     const script_p2tr = await getTaprootAddress(
       stakerPubKey,
-      covenantPubkey,
       protocolPubkey,
-      this.#timeLock,
+      covenantPubkey,
+      qorum,
       this.#networkType
     );
     return script_p2tr;
   }
   async getTapLeavesScript(
     stakerPubKey: Buffer,
-    covenantPubkey: Buffer,
-    protocolPubkey: Buffer
+    protocolPubkey: Buffer,
+    covenantPubkey: Buffer[],
+    qorum: number
   ): Promise<SpendingLeaves> {
     const tapScripts = await getTapLeafScript(
       stakerPubKey,
-      covenantPubkey,
       protocolPubkey,
-      this.#timeLock,
+      covenantPubkey,
+      qorum,
       this.#networkType
     );
     return tapScripts;
