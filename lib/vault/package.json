@@ -31,7 +31,10 @@
   },
   "homepage": "https://github.com/bersling/typescript-library-starter#readme",
   "devDependencies": {
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.14.9",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.3",
     "typescript": "5.2.2"
   },
   "dependencies": {
@@ -39,6 +42,9 @@
     "@unisat/wallet-sdk": "^1.7.1",
     "axios": "^1.7.2",
     "bip68": "^1.0.4",
-    "bitcoinjs-lib": "^6.1.6"
+    "bitcoinjs-lib": "^6.1.6",
+    "coinselect": "^3.1.13",
+    "dotenv": "^16.4.5",
+    "fs": "^0.0.1-security"
   }
 }
