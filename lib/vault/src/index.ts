@@ -12,7 +12,7 @@ export class Staker {
   #covenantPubkey: string[];
   #qorum: number;
   #tag: string;
-  #version: string;
+  #version: number;
   #chainID: string;
   #chainIdUserAddress: string;
   #chainSmartContractAddress: string;
@@ -24,7 +24,7 @@ export class Staker {
     covenantPubkey: string[],
     qorum: number,
     tag: string,
-    version: string,
+    version: number,
     chainID: string,
     chainIdUserAddress: string,
     chainSmartContractAddress: string,
@@ -153,10 +153,11 @@ export class Staker {
     if (tagBuffer.length !== 4) {
       throw new Error("Invalid tag");
     }
-    const versionBuffer = Buffer.from(this.#version);
+    const versionBuffer = Buffer.alloc(1);
+    versionBuffer.writeUInt8(this.#version);
     if (versionBuffer.length !== 1) {
       throw new Error("Invalid version");
-    }
+    } 
     const chainIDBuffer = Buffer.from(this.#chainID, "hex");
     const bytes_8_chainID = Buffer.alloc(8);
     chainIDBuffer.copy(bytes_8_chainID, 8 - chainIDBuffer.length);
