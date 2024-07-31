@@ -57,7 +57,7 @@ export class StakerScript {
     ];
 
     // keys must be sorted
-    const sortedPks = this.#covenantPubkey.sort(Buffer.compare);
+    const sortedPks = this.#covenantPubkey.sort((a,b) => Buffer.compare(toXOnly(a), toXOnly(b)));
     // verify there are no duplicates
     for (let i = 0; i < sortedPks.length - 1; ++i) {
       if (sortedPks[i].equals(sortedPks[i + 1])) {
@@ -84,7 +84,7 @@ export class StakerScript {
     ];
 
     // keys must be sorted
-    const sortedPks = this.#covenantPubkey.sort(Buffer.compare);
+    const sortedPks = this.#covenantPubkey.sort((a,b) => Buffer.compare(toXOnly(a), toXOnly(b)));
     // verify there are no duplicates
     for (let i = 0; i < sortedPks.length - 1; ++i) {
       if (sortedPks[i].equals(sortedPks[i + 1])) {
