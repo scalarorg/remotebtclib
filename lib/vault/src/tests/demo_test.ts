@@ -1,5 +1,6 @@
 import { Staker } from "..";
 import * as bitcoin from "bitcoinjs-lib";
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import ECPairFactory from "ecpair";
 import * as ecc from "tiny-secp256k1";
 import { witnessStackToScriptWitness } from "../utils/bitcoin";
@@ -71,7 +72,7 @@ const staker = new Staker(
   mintingAmount
 );
 const sortedCovenants = covenants_keyPairs.sort((a, b) =>
-  Buffer.compare(a.publicKey, b.publicKey)
+  Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey))
 );
 
 const feeRate = 10;
