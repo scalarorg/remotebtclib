@@ -56,7 +56,7 @@ const version = 0;
 const chainID = "01";
 const chainIdUserAddress = "6bb9F03858C8ed34CB6CeB2bB26B17da80Bc512C";
 const chainSmartContractAddress = "B5065Df90c390a7c5318f822b0Fa96Cde2f33051";
-const mintingAmount = "100000"; // in satoshis
+const mintingAmount = "1000.020"; // in satoshis
 
 const staker = new Staker(
   address,

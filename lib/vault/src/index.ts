@@ -4,6 +4,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import * as unsignedTransaction from "./transaction/unsignedPsbt";
 import { getAddressType } from "./utils/bitcoin";
 import { UTXO } from "./types/utxo";
+import { bitcoin_unit } from "./bip/constant";
 
 export class Staker {
   #stakerAddress: string;
@@ -49,6 +50,30 @@ export class Staker {
     feeRate: number,
     rbf: boolean
   ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
+    // Need to check the validity of the stakingAmount and mintingAmount
+    try {
+      parseFloat(this.#mintingAmount);
+    } catch (e) {
+      throw new Error("Invalid mintingAmount");
+    }
+    let number_format: string[] = this.#mintingAmount.split(".");
+    if (number_format.length > 2) {
+      throw new Error("Invalid mintingAmount format");
+    }
+    if (number_format.length == 2) {
+      let left = number_format[0];
+      let right = "0." + number_format[1];
+      if (parseInt(left) > 21000000) {
+        throw new Error("Invalid mintingAmount");
+      }
+      if (parseFloat(right) < 0.00000001) {
+        throw new Error("Invalid mintingAmount");
+      }
+    }
+    // make sure that mintingAmount is less than stakingAmount
+    if (parseFloat(this.#mintingAmount) > stakingAmount) {
+      throw new Error("mintingAmount is larger than stakingAmount");
+    }
     const staker = await this.getStaker();
     const [addressType, networkType] = getAddressType(this.#stakerAddress);
     const { psbt, feeEstimate } = await staker.getVaultPsbt({
@@ -57,7 +82,7 @@ export class Staker {
       feeRate: feeRate,
       rbf: rbf,
     });
-    return { psbt, feeEstimate};
+    return { psbt, feeEstimate };
   }
 
   async getUnsignedBurningPsbt(
@@ -65,17 +90,15 @@ export class Staker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt;
-    feeEstimate: number
-   }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
     const staker = await this.getStaker();
-    const { psbt , feeEstimate} = await staker.getBurningPsbt({
+    const { psbt, feeEstimate } = await staker.getBurningPsbt({
       preUtxoHex: signedVaultTransactionHex,
       burnAddress: burnAddress,
       feeRate,
       rbf,
     });
-    return { psbt , feeEstimate};
+    return { psbt, feeEstimate };
   }
 
   async getUnsignedSlashingOrLostKeyPsbt(
@@ -83,11 +106,9 @@ export class Staker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt;
-    feeEstimate: number
-  }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
     const staker = await this.getStaker();
-    const { psbt, feeEstimate} = await staker.getSlashingOrLostKeyPsbt({
+    const { psbt, feeEstimate } = await staker.getSlashingOrLostKeyPsbt({
       preUtxoHex: signedVaultPsbtHex,
       burnAddress: burnAddress,
       feeRate,
@@ -101,9 +122,7 @@ export class Staker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt ;
-    feeEstimate: number
-  }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
     const staker = await this.getStaker();
     const { psbt, feeEstimate } = await staker.getBurnWithoutDAppPsbt({
       preUtxoHex: signedVaultPsbtHex,
@@ -157,7 +176,7 @@ export class Staker {
     versionBuffer.writeUInt8(this.#version);
     if (versionBuffer.length !== 1) {
       throw new Error("Invalid version");
-    } 
+    }
     const chainIDBuffer = Buffer.from(this.#chainID, "hex");
     const bytes_8_chainID = Buffer.alloc(8);
     chainIDBuffer.copy(bytes_8_chainID, 8 - chainIDBuffer.length);
@@ -179,10 +198,33 @@ export class Staker {
     if (chainSmartContractAddressBuffer.length !== 20) {
       throw new Error("Invalid chainSmartContractAddress");
     }
-    const mintingAmountBuffer = Buffer.from(this.#mintingAmount, "hex");
-    const bytes_32_mintingAmount = Buffer.alloc(32);
-    mintingAmountBuffer.copy(bytes_32_mintingAmount);
-    if (bytes_32_mintingAmount.length !== 32) {
+    // check valid mintingAmount
+    // it must be a number
+    // if it in form : xxxxx.yyyyy
+    // we need to ensure that len(xxxxx) <= 8 and len(yyyyy) <= 8
+    try {
+      parseFloat(this.#mintingAmount);
+    } catch (e) {
+      throw new Error("Invalid mintingAmount");
+    }
+    let number_format: string[] = this.#mintingAmount.split(".");
+    if (number_format.length > 2) {
+      throw new Error("Invalid mintingAmount format");
+    }
+
+    if (number_format.length == 2) {
+      let left = number_format[0];
+      let right = "0." + number_format[1];
+      if (parseInt(left) > 21000000) {
+        throw new Error("Invalid mintingAmount");
+      }
+      if (parseFloat(right) < 0.00000001) {
+        throw new Error("Invalid mintingAmount");
+      }
+    }
+    const parsedMintingAmount = String(parseFloat(this.#mintingAmount));
+    const mintingAmountBuffer = Buffer.from(parsedMintingAmount, "ascii");
+    if (mintingAmountBuffer.length > 32) {
       throw new Error("Invalid mintingAmount");
     }
     return new unsignedTransaction.VaultTransaction(
@@ -196,7 +238,7 @@ export class Staker {
       bytes_8_chainID,
       chainIdUserAddressBuffer,
       chainSmartContractAddressBuffer,
-      bytes_32_mintingAmount,
+      mintingAmountBuffer,
       networkType
     );
   }
