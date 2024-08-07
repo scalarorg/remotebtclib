@@ -62,9 +62,10 @@ export class Staker {
     rbf: boolean
   ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
     // Need to check the validity of the stakingAmount and mintingAmount
-    try {
-      parseInt(this.#mintingAmount);
-    } catch (e) {
+    if (this.#mintingAmount.includes(".")) {
+      throw new Error("Invalid mintingAmount");
+    }
+    if (isNaN(Number(this.#mintingAmount))) {
       throw new Error("Invalid mintingAmount");
     }
     const num = parseInt(this.#mintingAmount);
@@ -267,7 +268,7 @@ export class UnStaker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number, SolLeaf: Leaf }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number; SolLeaf: Leaf }> {
     const staker = await this.getStaker();
     const tapLeaves = await staker.getTapLeavesScript();
     const { psbt, feeEstimate } = await staker.getSlashingOrLostKeyPsbt({
