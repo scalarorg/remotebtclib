@@ -5,6 +5,7 @@ import * as unsignedTransaction from "./transaction/unsignedPsbt";
 import { getAddressType } from "./utils/bitcoin";
 import { UTXO } from "./types/utxo";
 import { bitcoin_unit } from "./bip/constant";
+import { buffer } from "stream/consumers";
 
 export class Staker {
   #stakerAddress: string;
@@ -52,27 +53,13 @@ export class Staker {
   ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
     // Need to check the validity of the stakingAmount and mintingAmount
     try {
-      parseFloat(this.#mintingAmount);
+      parseInt(this.#mintingAmount);
     } catch (e) {
       throw new Error("Invalid mintingAmount");
     }
-    let number_format: string[] = this.#mintingAmount.split(".");
-    if (number_format.length > 2) {
-      throw new Error("Invalid mintingAmount format");
-    }
-    if (number_format.length == 2) {
-      let left = number_format[0];
-      let right = "0." + number_format[1];
-      if (parseInt(left) > 21000000) {
-        throw new Error("Invalid mintingAmount");
-      }
-      if (parseFloat(right) < 0.00000001) {
-        throw new Error("Invalid mintingAmount");
-      }
-    }
-    // make sure that mintingAmount is less than stakingAmount
-    if (parseFloat(this.#mintingAmount) > stakingAmount) {
-      throw new Error("mintingAmount is larger than stakingAmount");
+    const num = parseInt(this.#mintingAmount);
+    if (num > stakingAmount) {
+      throw new Error("minting amount is greater than staking amount");
     }
     const staker = await this.getStaker();
     const [addressType, networkType] = getAddressType(this.#stakerAddress);
@@ -203,30 +190,14 @@ export class Staker {
     // if it in form : xxxxx.yyyyy
     // we need to ensure that len(xxxxx) <= 8 and len(yyyyy) <= 8
     try {
-      parseFloat(this.#mintingAmount);
+      parseInt(this.#mintingAmount);
     } catch (e) {
       throw new Error("Invalid mintingAmount");
     }
-    let number_format: string[] = this.#mintingAmount.split(".");
-    if (number_format.length > 2) {
-      throw new Error("Invalid mintingAmount format");
-    }
+    const num = parseInt(this.#mintingAmount);
+    const mintingAmountBuffer = Buffer.alloc(8);
+    mintingAmountBuffer.writeBigUInt64BE(BigInt(num));
 
-    if (number_format.length == 2) {
-      let left = number_format[0];
-      let right = "0." + number_format[1];
-      if (parseInt(left) > 21000000) {
-        throw new Error("Invalid mintingAmount");
-      }
-      if (parseFloat(right) < 0.00000001) {
-        throw new Error("Invalid mintingAmount");
-      }
-    }
-    const parsedMintingAmount = String(parseFloat(this.#mintingAmount));
-    const mintingAmountBuffer = Buffer.from(parsedMintingAmount, "ascii");
-    if (mintingAmountBuffer.length > 32) {
-      throw new Error("Invalid mintingAmount");
-    }
     return new unsignedTransaction.VaultTransaction(
       this.#stakerAddress,
       stakerPubkeyBuffer,
