@@ -1,4 +1,4 @@
-import { Staker } from "..";
+import { Staker, UnStaker } from "..";
 import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import ECPairFactory from "ecpair";
@@ -56,7 +56,7 @@ const version = 0;
 const chainID = "01";
 const chainIdUserAddress = "6bb9F03858C8ed34CB6CeB2bB26B17da80Bc512C";
 const chainSmartContractAddress = "B5065Df90c390a7c5318f822b0Fa96Cde2f33051";
-const mintingAmount = "1000.020"; // in satoshis
+const mintingAmount = "1000"; // in satoshis
 
 const staker = new Staker(
   address,
@@ -104,11 +104,19 @@ async function vault(option: string = "test") {
   }
 }
 
-async function burning(tx: bitcoin.Transaction, option: string = "test") {
-  // SETUP leaves
-  const tapLeaves = (await staker.getStaker()).getTapLeavesScript();
+async function burning(tx: string, option: string = "test") {
+  const unStaker = new UnStaker(
+    address,
+    tx,
+    covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+    qorum
+  );
   //////////////////////////// Burning ////////////////////////////
-  const burningLeaf = (await tapLeaves).burningLeaf;
+  const {
+    psbt: burningPsbt,
+    feeEstimate: fee,
+    burningLeaf,
+  } = await unStaker.getUnsignedBurningPsbt(address, feeRate, rbf);
   const burningFinalizer = (_inputIndex: number, input: PsbtInput) => {
     const empty_vector = Buffer.from([]);
     const scriptSolution = [
@@ -123,8 +131,6 @@ async function burning(tx: bitcoin.Transaction, option: string = "test") {
     };
   };
 
-  const { psbt: burningPsbt, feeEstimate: fee } =
-    await staker.getUnsignedBurningPsbt(tx.toHex(), address, feeRate, rbf);
   burningPsbt.signInput(0, staker_keyPair);
   burningPsbt.signInput(0, protocol_keyPair);
   burningPsbt.finalizeInput(0, burningFinalizer);
@@ -140,42 +146,40 @@ async function burning(tx: bitcoin.Transaction, option: string = "test") {
   }
 }
 
-async function slashingOrLostKey(
-  tx: bitcoin.Transaction,
-  option: string = "test"
-) {
+async function slashingOrLostKey(tx: string, option: string = "test") {
+  const unStaker = new UnStaker(
+    address,
+    tx,
+    covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+    qorum
+  );
   // SETUP leaves
-  const tapLeaves = (await staker.getStaker()).getTapLeavesScript();
   //////////////////////////// Slashing ////////////////////////////
-  const slashingOrLostKeyLeaf = (await tapLeaves).slashingOrLostKeyLeaf;
+  const {
+    psbt: slashingOrLostKeyPsbt,
+    feeEstimate: fee,
+    SolLeaf,
+  } = await unStaker.getUnsignedSlashingOrLostKeyPsbt(address, feeRate, rbf);
   const slashingFinalizer = (_inputIndex: number, input: PsbtInput) => {
     const empty_vector = Buffer.from([]);
     const scriptSolution = [
       input.tapScriptSig![6].signature,
-      input.tapScriptSig![5].signature,
-      // input.tapScriptSig![4].signature,
-      input.tapScriptSig![3].signature,
+      // input.tapScriptSig![5].signature,
       empty_vector,
-      input.tapScriptSig![2].signature,
+      input.tapScriptSig![4].signature,
+      input.tapScriptSig![3].signature,
+      // input.tapScriptSig![2].signature,
       empty_vector,
       input.tapScriptSig![1].signature,
       input.tapScriptSig![0].signature,
     ];
     const witness = scriptSolution
-      .concat(slashingOrLostKeyLeaf.script)
-      .concat(slashingOrLostKeyLeaf.controlBlock);
+      .concat(SolLeaf.script)
+      .concat(SolLeaf.controlBlock);
     return {
       finalScriptWitness: witnessStackToScriptWitness(witness),
     };
   };
-
-  const { psbt: slashingOrLostKeyPsbt, feeEstimate: fee } =
-    await staker.getUnsignedSlashingOrLostKeyPsbt(
-      tx.toHex(),
-      address,
-      feeRate,
-      rbf
-    );
 
   slashingOrLostKeyPsbt.signInput(0, staker_keyPair);
   slashingOrLostKeyPsbt.signInput(0, protocol_keyPair);
@@ -197,14 +201,20 @@ async function slashingOrLostKey(
   }
 }
 
-async function burnWithoutDApp(
-  tx: bitcoin.Transaction,
-  option: string = "test"
-) {
+async function burnWithoutDApp(tx: string, option: string = "test") {
+  const unStaker = new UnStaker(
+    address,
+    tx,
+    covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+    qorum
+  );
   // SETUP leaves
-  const tapLeaves = (await staker.getStaker()).getTapLeavesScript();
   //////////////////////////// Burning Without DApp ////////////////////////////
-  const burnWithoutDAppLeaf = (await tapLeaves).burnWithoutDAppLeaf;
+  const {
+    psbt: burnWithoutDAppPsbt,
+    feeEstimate: fee,
+    BWoD,
+  } = await unStaker.getUnsignedBurnWithoutDAppPsbt(address, feeRate, rbf);
   const burnWithoutDAppFinalizer = (_inputIndex: number, input: PsbtInput) => {
     const empty_vector = Buffer.from([]);
     const scriptSolution = [
@@ -218,20 +228,13 @@ async function burnWithoutDApp(
       input.tapScriptSig![0].signature,
     ];
     const witness = scriptSolution
-      .concat(burnWithoutDAppLeaf.script)
-      .concat(burnWithoutDAppLeaf.controlBlock);
+      .concat(BWoD.script)
+      .concat(BWoD.controlBlock);
     return {
       finalScriptWitness: witnessStackToScriptWitness(witness),
     };
   };
 
-  const { psbt: burnWithoutDAppPsbt, feeEstimate: fee } =
-    await staker.getUnsignedBurnWithoutDAppPsbt(
-      tx.toHex(),
-      address,
-      feeRate,
-      rbf
-    );
   burnWithoutDAppPsbt.signInput(0, staker_keyPair);
   burnWithoutDAppPsbt.signInput(0, sortedCovenants[0]);
   burnWithoutDAppPsbt.signInput(0, sortedCovenants[1]);
@@ -251,10 +254,9 @@ async function burnWithoutDApp(
   }
 }
 
-const tx = bitcoin.Transaction.fromHex(
-  "020000000001022f2c7cb9dcfe3e94e2605c352b8319645dfeb6b32e35292e3f70d1aecf6dc4b80000000000fdffffff5f9852c87408fa37d6ebb9b0c0f67885ef0a1f076c2cf91ab2e85ab489c3caf50300000000fdffffff041027000000000000225120a86f9f7e22896fe90f4798192728a60583b6ded005e44b4fb1c64f50c5a65ec60000000000000000476a4501020304302b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d0000000000000000536a4c5000000000000000016bb9f03858c8ed34cb6ceb2bb26b17da80bc512cb5065df90c390a7c5318f822b0fa96cde2f330511000000000000000000000000000000000000000000000000000000000000000171c0e000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b240247304402206fb2eb98d9ecfc3906ff26887309b3fbb48181034135e286bef102b99fcc732e022022b4d50b14219540e48e1c1f5763748aac654913bc70e54a0e8add9e73eea5590121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d02483045022100bb5a6711d748dd2b37ea6b42b10f3e9eb87d24d868336d145e00c33fd7ed734f02203642474a4edac7e2f4cad7f66ac16ea296b575c127d0aef6c61a81a8e3c58c770121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000"
-);
-vault("send");
-// burning(tx,"send");
+const tx =
+  "02000000000103d8c74ea521e5c4de049e6479ca314b748f8e2f20b8d2106f50fd99916d69e81b0300000000fdffffff3c1e71f920ecad93f094b1b5b8bcde59a3bd756f1beb8e1e83fb0c1da5e74dd40000000000fdffffffe420ddd5dd15fd16cc4f557212112d69b9742415ace8d8f73b05ed5e531dd20d0000000000fdffffff0410270000000000002251207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be910000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a3800000000000000016bb9f03858c8ed34cb6ceb2bb26b17da80bc512cb5065df90c390a7c5318f822b0fa96cde2f3305100000000000003e8a70d00000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b2402483045022100b82a88e869f5987f45e6b8c80c2cbb7f1e065e524d985a64b4483f68ac6cf11e02201c4fcc3ceda35b5e05beba21f8a1b2c0603f98aaa2eb9e1f65630d30ca5c734b0121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d024830450221008bf723cdacf45558f6fb07cca0629272627e8e37e52cbdc159e9897b072d0e0c02204cfb6be765da9a6551e3d85aea1da3004cf30155d52bc7dba23a095b00ed90630121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d0247304402207a512642dbd258322062595e0910b4db1a6db8ca9160f93299656e70c3c55b3f02205c33d9ccdc17692f38b1c606b25f1e2e859682682a9481002e5f5c00522a6c260121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
+// vault();
+burning(tx,"send");
 // slashingOrLostKey(tx);
-// burnWithoutDApp(tx,"send")
+// burnWithoutDApp(tx);
