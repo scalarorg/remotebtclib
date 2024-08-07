@@ -1,11 +1,21 @@
-import { ToSignInput } from "@unisat/wallet-sdk";
-import { decodeAddress } from "@unisat/wallet-sdk/lib/address";
 import * as bitcoin from "bitcoinjs-lib";
 import * as unsignedTransaction from "./transaction/unsignedPsbt";
 import { getAddressType } from "./utils/bitcoin";
 import { UTXO } from "./types/utxo";
-import { bitcoin_unit } from "./bip/constant";
-import { buffer } from "stream/consumers";
+import {
+  opCodeLength,
+  tagLength,
+  versionLength,
+  BtcXOnlyPubkeyLength,
+  EthAddressLength,
+} from "./utils/constants";
+import * as ecc from "tiny-secp256k1";
+import ECPairFactory from "ecpair";
+import { Leaf } from "./types/spendType";
+// Initialize the ECC library
+bitcoin.initEccLib(ecc);
+
+const ECPair = ECPairFactory(ecc);
 
 export class Staker {
   #stakerAddress: string;
@@ -62,7 +72,6 @@ export class Staker {
       throw new Error("minting amount is greater than staking amount");
     }
     const staker = await this.getStaker();
-    const [addressType, networkType] = getAddressType(this.#stakerAddress);
     const { psbt, feeEstimate } = await staker.getVaultPsbt({
       btcUtxos: btcUtxos,
       stakingAmount: stakingAmount,
@@ -77,15 +86,16 @@ export class Staker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number; burningLeaf: Leaf }> {
     const staker = await this.getStaker();
+    const tapLeaves = await staker.getTapLeavesScript();
     const { psbt, feeEstimate } = await staker.getBurningPsbt({
       preUtxoHex: signedVaultTransactionHex,
       burnAddress: burnAddress,
       feeRate,
       rbf,
     });
-    return { psbt, feeEstimate };
+    return { psbt, feeEstimate, burningLeaf: tapLeaves.burningLeaf };
   }
 
   async getUnsignedSlashingOrLostKeyPsbt(
@@ -93,15 +103,16 @@ export class Staker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number; SolLeaf: Leaf }> {
     const staker = await this.getStaker();
+    const tapLeaves = await staker.getTapLeavesScript();
     const { psbt, feeEstimate } = await staker.getSlashingOrLostKeyPsbt({
       preUtxoHex: signedVaultPsbtHex,
       burnAddress: burnAddress,
       feeRate,
       rbf,
     });
-    return { psbt, feeEstimate };
+    return { psbt, feeEstimate, SolLeaf: tapLeaves.slashingOrLostKeyLeaf };
   }
 
   async getUnsignedBurnWithoutDAppPsbt(
@@ -109,15 +120,16 @@ export class Staker {
     burnAddress: string,
     feeRate: number,
     rbf: boolean
-  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number; BWoD: Leaf }> {
     const staker = await this.getStaker();
+    const tapLeaves = await staker.getTapLeavesScript();
     const { psbt, feeEstimate } = await staker.getBurnWithoutDAppPsbt({
       preUtxoHex: signedVaultPsbtHex,
       burnAddress: burnAddress,
       feeRate,
       rbf,
     });
-    return { psbt, feeEstimate };
+    return { psbt, feeEstimate, BWoD: tapLeaves.burnWithoutDAppLeaf };
   }
 
   setCovenantPubkey(covenantPubkey: string[]): void {
@@ -155,6 +167,11 @@ export class Staker {
         throw new Error("Invalid covenant pubkey");
       }
     }
+
+    if (this.#qorum > this.#covenantPubkey.length) {
+      throw new Error("Invalid qorum");
+    }
+
     const tagBuffer = Buffer.from(this.#tag, "hex");
     if (tagBuffer.length !== 4) {
       throw new Error("Invalid tag");
@@ -197,7 +214,6 @@ export class Staker {
     const num = parseInt(this.#mintingAmount);
     const mintingAmountBuffer = Buffer.alloc(8);
     mintingAmountBuffer.writeBigUInt64BE(BigInt(num));
-
     return new unsignedTransaction.VaultTransaction(
       this.#stakerAddress,
       stakerPubkeyBuffer,
@@ -210,6 +226,130 @@ export class Staker {
       chainIdUserAddressBuffer,
       chainSmartContractAddressBuffer,
       mintingAmountBuffer,
+      networkType
+    );
+  }
+}
+
+export class UnStaker {
+  #stakerAddress: string;
+  #vaultTransactionHex: string;
+  #covenantPubkey: string[];
+  #qorum: number;
+  constructor(
+    stakerAddress: string,
+    vaultTransactionHex: string,
+    covenantPubkey: string[],
+    qorum: number
+  ) {
+    this.#stakerAddress = stakerAddress;
+    this.#vaultTransactionHex = vaultTransactionHex;
+    this.#covenantPubkey = covenantPubkey;
+    this.#qorum = qorum;
+  }
+  async getUnsignedBurningPsbt(
+    burnAddress: string,
+    feeRate: number,
+    rbf: boolean
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number; burningLeaf: Leaf }> {
+    const staker = await this.getStaker();
+    const tapLeaves = await staker.getTapLeavesScript();
+    const { psbt, feeEstimate } = await staker.getBurningPsbt({
+      preUtxoHex: this.#vaultTransactionHex,
+      burnAddress: burnAddress,
+      feeRate,
+      rbf,
+    });
+    return { psbt, feeEstimate, burningLeaf: tapLeaves.burningLeaf };
+  }
+
+  async getUnsignedSlashingOrLostKeyPsbt(
+    burnAddress: string,
+    feeRate: number,
+    rbf: boolean
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number, SolLeaf: Leaf }> {
+    const staker = await this.getStaker();
+    const tapLeaves = await staker.getTapLeavesScript();
+    const { psbt, feeEstimate } = await staker.getSlashingOrLostKeyPsbt({
+      preUtxoHex: this.#vaultTransactionHex,
+      burnAddress: burnAddress,
+      feeRate,
+      rbf,
+    });
+    return { psbt, feeEstimate, SolLeaf: tapLeaves.slashingOrLostKeyLeaf };
+  }
+
+  async getUnsignedBurnWithoutDAppPsbt(
+    burnAddress: string,
+    feeRate: number,
+    rbf: boolean
+  ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number; BWoD: Leaf }> {
+    const staker = await this.getStaker();
+    const tapLeaves = await staker.getTapLeavesScript();
+    const { psbt, feeEstimate } = await staker.getBurnWithoutDAppPsbt({
+      preUtxoHex: this.#vaultTransactionHex,
+      burnAddress: burnAddress,
+      feeRate,
+      rbf,
+    });
+    return { psbt, feeEstimate, BWoD: tapLeaves.burnWithoutDAppLeaf };
+  }
+
+  async getStaker(): Promise<unsignedTransaction.VaultTransaction> {
+    const vaultTransaction = bitcoin.Transaction.fromHex(
+      this.#vaultTransactionHex
+    );
+
+    const stakingData = vaultTransaction.outs[1].script;
+    // Recover the staker and protocol pubkey
+    // We only just rebuild the script, so we no need to determine the odd or even, so we just add 0x00 at the beginning of the pubkey
+    const StakerPubkeyBuffer = Buffer.concat([
+      Buffer.alloc(1),
+      stakingData.subarray(
+        opCodeLength + tagLength + versionLength,
+        opCodeLength + tagLength + versionLength + BtcXOnlyPubkeyLength
+      ),
+    ]);
+    if (StakerPubkeyBuffer.length !== 33) {
+      throw new Error("Invalid staker pubkey");
+    }
+
+    const ProtocolPubkeyBuffer = Buffer.concat([
+      Buffer.alloc(1),
+      stakingData.subarray(
+        opCodeLength + tagLength + versionLength + BtcXOnlyPubkeyLength,
+        opCodeLength + tagLength + versionLength + BtcXOnlyPubkeyLength * 2
+      ),
+    ]);
+    if (ProtocolPubkeyBuffer.length !== 33) {
+      throw new Error("Invalid protocol pubkey");
+    }
+
+    const covenantPubkeyBuffer = this.#covenantPubkey.map((v) =>
+      Buffer.from(v, "hex")
+    );
+    for (let i = 0; i < covenantPubkeyBuffer.length; i++) {
+      if (covenantPubkeyBuffer[i].length !== 33) {
+        throw new Error("Invalid covenant pubkey");
+      }
+    }
+    if (this.#qorum > this.#covenantPubkey.length) {
+      throw new Error("Invalid qorum");
+    }
+
+    const [addressType, networkType] = getAddressType(this.#stakerAddress);
+    return new unsignedTransaction.VaultTransaction(
+      this.#stakerAddress,
+      StakerPubkeyBuffer,
+      ProtocolPubkeyBuffer,
+      covenantPubkeyBuffer,
+      this.#qorum,
+      Buffer.alloc(tagLength),
+      Buffer.alloc(versionLength),
+      Buffer.alloc(0),
+      Buffer.alloc(EthAddressLength),
+      Buffer.alloc(EthAddressLength),
+      Buffer.alloc(0),
       networkType
     );
   }
