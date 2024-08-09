@@ -28,7 +28,7 @@ export class Staker {
   #chainID: string;
   #chainIdUserAddress: string;
   #chainSmartContractAddress: string;
-  #mintingAmount: string;
+  #mintingAmount: number;
   constructor(
     stakerAddress: string,
     stakerPubkey: string,
@@ -40,7 +40,7 @@ export class Staker {
     chainID: string,
     chainIdUserAddress: string,
     chainSmartContractAddress: string,
-    mintingAmount: string
+    mintingAmount: number
   ) {
     this.#stakerAddress = stakerAddress;
     this.#stakerPubkey = stakerPubkey;
@@ -62,14 +62,7 @@ export class Staker {
     rbf: boolean
   ): Promise<{ psbt: bitcoin.Psbt; feeEstimate: number }> {
     // Need to check the validity of the stakingAmount and mintingAmount
-    if (this.#mintingAmount.includes(".")) {
-      throw new Error("Invalid mintingAmount");
-    }
-    if (isNaN(Number(this.#mintingAmount))) {
-      throw new Error("Invalid mintingAmount");
-    }
-    const num = parseInt(this.#mintingAmount);
-    if (num > stakingAmount) {
+    if (this.#mintingAmount > stakingAmount) {
       throw new Error("minting amount is greater than staking amount");
     }
     const staker = await this.getStaker();
@@ -207,14 +200,8 @@ export class Staker {
     // it must be a number
     // if it in form : xxxxx.yyyyy
     // we need to ensure that len(xxxxx) <= 8 and len(yyyyy) <= 8
-    try {
-      parseInt(this.#mintingAmount);
-    } catch (e) {
-      throw new Error("Invalid mintingAmount");
-    }
-    const num = parseInt(this.#mintingAmount);
     const mintingAmountBuffer = Buffer.alloc(8);
-    mintingAmountBuffer.writeBigUInt64BE(BigInt(num));
+    mintingAmountBuffer.writeBigUInt64BE(BigInt(this.#mintingAmount))
     return new unsignedTransaction.VaultTransaction(
       this.#stakerAddress,
       stakerPubkeyBuffer,
