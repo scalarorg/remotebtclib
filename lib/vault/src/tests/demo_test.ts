@@ -53,11 +53,12 @@ const qorum = 3;
 
 const tag = "01020304";
 const version = 0;
-const chainID = "01";
-const chainIdUserAddress = "6bb9F03858C8ed34CB6CeB2bB26B17da80Bc512C";
-const chainSmartContractAddress = "B5065Df90c390a7c5318f822b0Fa96Cde2f33051";
-const mintingAmount = "1000"; // in satoshis
 
+const chainID = "aa36a7";
+const chainIdUserAddress = "130C4810D57140e1E62967cBF742CaEaE91b6ecE";
+const chainSmartContractAddress = "768E8De8cf0c7747D41f75F83C914a19C5921Cf3";
+const mintingAmount = 10000; // in satoshis
+ 
 const staker = new Staker(
   address,
   staker_keyPair.publicKey.toString("hex"),
@@ -132,8 +133,10 @@ async function burning(tx: string, option: string = "test") {
   };
 
   burningPsbt.signInput(0, staker_keyPair);
-  burningPsbt.signInput(0, protocol_keyPair);
-  burningPsbt.finalizeInput(0, burningFinalizer);
+  const staker_signature = burningPsbt.data.inputs[0].tapScriptSig![0].signature;
+  console.log(staker_signature.toString("hex"));
+  // burningPsbt.signInput(0, protocol_keyPair);
+  burningPsbt.finalizeInput(0);
   const burningTx = burningPsbt.extractTransaction(true);
   console.log(fee);
   console.log(burningTx.virtualSize());
@@ -236,13 +239,16 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
   };
 
   burnWithoutDAppPsbt.signInput(0, staker_keyPair);
-  burnWithoutDAppPsbt.signInput(0, sortedCovenants[0]);
-  burnWithoutDAppPsbt.signInput(0, sortedCovenants[1]);
-  burnWithoutDAppPsbt.signInput(0, sortedCovenants[2]);
-  burnWithoutDAppPsbt.signInput(0, sortedCovenants[3]);
-  burnWithoutDAppPsbt.signInput(0, sortedCovenants[4]);
-  burnWithoutDAppPsbt.finalizeInput(0, burnWithoutDAppFinalizer);
+  const staker_signature = burnWithoutDAppPsbt.data.inputs[0].tapScriptSig![0].signature;
+  console.log(staker_signature.toString("hex"));
+  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[0]);
+  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[1]);
+  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[2]);
+  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[3]);
+  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[4]);
+  burnWithoutDAppPsbt.finalizeInput(0);
   const burnWithoutDAppTx = burnWithoutDAppPsbt.extractTransaction(true);
+  console.log(burnWithoutDAppTx.toHex());
   console.log(fee);
   console.log(burnWithoutDAppTx.virtualSize());
   if (option === "test") {
@@ -255,8 +261,8 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
 }
 
 const tx =
-  "02000000000103d8c74ea521e5c4de049e6479ca314b748f8e2f20b8d2106f50fd99916d69e81b0300000000fdffffff3c1e71f920ecad93f094b1b5b8bcde59a3bd756f1beb8e1e83fb0c1da5e74dd40000000000fdffffffe420ddd5dd15fd16cc4f557212112d69b9742415ace8d8f73b05ed5e531dd20d0000000000fdffffff0410270000000000002251207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be910000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a3800000000000000016bb9f03858c8ed34cb6ceb2bb26b17da80bc512cb5065df90c390a7c5318f822b0fa96cde2f3305100000000000003e8a70d00000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b2402483045022100b82a88e869f5987f45e6b8c80c2cbb7f1e065e524d985a64b4483f68ac6cf11e02201c4fcc3ceda35b5e05beba21f8a1b2c0603f98aaa2eb9e1f65630d30ca5c734b0121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d024830450221008bf723cdacf45558f6fb07cca0629272627e8e37e52cbdc159e9897b072d0e0c02204cfb6be765da9a6551e3d85aea1da3004cf30155d52bc7dba23a095b00ed90630121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d0247304402207a512642dbd258322062595e0910b4db1a6db8ca9160f93299656e70c3c55b3f02205c33d9ccdc17692f38b1c606b25f1e2e859682682a9481002e5f5c00522a6c260121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
-// vault();
-burning(tx,"send");
+  "020000000001015ac71b7bf22c8d46dec05f587ba0e1721e7a59a9d0f2610e577fadf4ea3ee7040300000000fdffffff0410270000000000002251207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be910000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a3800000000000000016bb9f03858c8ed34cb6ceb2bb26b17da80bc512cb5065df90c390a7c5318f822b0fa96cde2f3305100000000000003e805040c000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b2402473044022060b86ad465133d0ff6141d65b783b7162b83234f13c1f383a492f79cc78fc11102205981dedab6a8aadfea27fafb29cc1f506fb50690c6e39af855f97732f2acb22e0121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
+vault("send");
+// burning(tx);
 // slashingOrLostKey(tx);
 // burnWithoutDApp(tx);
