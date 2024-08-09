@@ -1,7 +1,7 @@
 # remotebtclib
 
 Push vault transaction:
-Go to /Users/hoang/Desktop/dAppProject/remotebtclib/lib/vault/src/tests/demo_test.ts
+Go to remotebtclib/lib/vault/src/tests/demo_test.ts
 
 At line 57 to 60: 
  + change value if you want
