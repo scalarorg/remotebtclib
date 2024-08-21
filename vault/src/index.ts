@@ -16,7 +16,6 @@ import { Leaf } from "./types/spendType";
 bitcoin.initEccLib(ecc);
 
 const ECPair = ECPairFactory(ecc);
-
 export class Staker {
   #stakerAddress: string;
   #stakerPubkey: string;
