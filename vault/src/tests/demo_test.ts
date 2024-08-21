@@ -42,13 +42,25 @@ const covenant_5_keyPair = ECPair.fromWIF(
   networkType
 );
 
-const covenants_keyPairs = [
-  covenant_1_keyPair,
-  covenant_2_keyPair,
-  covenant_3_keyPair,
-  covenant_4_keyPair,
-  covenant_5_keyPair,
+// const covenants_keyPairs = [
+//   covenant_1_keyPair,
+//   covenant_2_keyPair,
+//   covenant_3_keyPair,
+//   covenant_4_keyPair,
+//   covenant_5_keyPair,
+// ];
+// const covs = covenants_keyPairs.map((c) => c.publicKey.toString("hex"));
+const covs = [
+  "035b004b4307b5bc768e2d3a359a34255369a00eda504ba10fc9aeac8db525098b",
+  "02104f3fd30f56908568cab4a0c5bb2345561bfad7bf82bd0b1bfda7dbddafffd2",
+  "022c9a3bd80bf81edf06c840456b3a52e69daf46e987b6493f8d51197e32ba5bdb",
+  "0359bcff3ec8b799430944180772867534ba5cae4757e0354a099cd98f8fe1b75e",
+  "0227f8ffdb860f72e36bc98847dafecf09cd5fe3eb9964cecd51e564cbd7f8f5b9",
 ];
+
+// // take p2wpkh of each covs :
+console.log(covs.map((c) => bitcoin.payments.p2wpkh({ pubkey: Buffer.from(c, "hex"), network: networkType }).address));
+
 const qorum = 3;
 
 const tag = "01020304";
@@ -58,12 +70,12 @@ const chainID = "aa36a7";
 const chainIdUserAddress = "130C4810D57140e1E62967cBF742CaEaE91b6ecE";
 const chainSmartContractAddress = "768E8De8cf0c7747D41f75F83C914a19C5921Cf3";
 const mintingAmount = 10000; // in satoshis
- 
+
 const staker = new Staker(
   address,
   staker_keyPair.publicKey.toString("hex"),
   protocol_keyPair.publicKey.toString("hex"),
-  covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+  covs,
   qorum,
   tag,
   version,
@@ -72,9 +84,9 @@ const staker = new Staker(
   chainSmartContractAddress,
   mintingAmount
 );
-const sortedCovenants = covenants_keyPairs.sort((a, b) =>
-  Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey))
-);
+// const sortedCovenants = covenants_keyPairs.sort((a, b) =>
+//   Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey))
+// );
 
 const feeRate = 10;
 const rbf = true;
@@ -109,7 +121,7 @@ async function burning(tx: string, option: string = "test") {
   const unStaker = new UnStaker(
     address,
     tx,
-    covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+    covs,
     qorum
   );
   //////////////////////////// Burning ////////////////////////////
@@ -131,13 +143,19 @@ async function burning(tx: string, option: string = "test") {
       finalScriptWitness: witnessStackToScriptWitness(witness),
     };
   };
-
   burningPsbt.signInput(0, staker_keyPair);
-  const staker_signature = burningPsbt.data.inputs[0].tapScriptSig![0].signature;
-  console.log(staker_signature.toString("hex"));
+  console.log(burningPsbt.toBase64());
+  // const staker_signature =
+  //   burningPsbt.data.inputs[0].tapScriptSig![0].signature;
+  // console.log(staker_signature.toString("hex"));
+  burningPsbt.finalizeInput(0)
   // burningPsbt.signInput(0, protocol_keyPair);
-  burningPsbt.finalizeInput(0);
+  // const test = burningPsbt.toBase64();
+  // const test_new_psbt = bitcoin.Psbt.fromBase64(test);
+  // test_new_psbt.signInput(0, protocol_keyPair);
+  // test_new_psbt.finalizeInput(0);
   const burningTx = burningPsbt.extractTransaction(true);
+  console.log(burningPsbt.toBase64());
   console.log(fee);
   console.log(burningTx.virtualSize());
   if (option === "test") {
@@ -153,7 +171,7 @@ async function slashingOrLostKey(tx: string, option: string = "test") {
   const unStaker = new UnStaker(
     address,
     tx,
-    covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+    covs,
     qorum
   );
   // SETUP leaves
@@ -186,11 +204,11 @@ async function slashingOrLostKey(tx: string, option: string = "test") {
 
   slashingOrLostKeyPsbt.signInput(0, staker_keyPair);
   slashingOrLostKeyPsbt.signInput(0, protocol_keyPair);
-  slashingOrLostKeyPsbt.signInput(0, sortedCovenants[0]);
-  slashingOrLostKeyPsbt.signInput(0, sortedCovenants[1]);
-  slashingOrLostKeyPsbt.signInput(0, sortedCovenants[2]);
-  slashingOrLostKeyPsbt.signInput(0, sortedCovenants[3]);
-  slashingOrLostKeyPsbt.signInput(0, sortedCovenants[4]);
+  // slashingOrLostKeyPsbt.signInput(0, sortedCovenants[0]);
+  // slashingOrLostKeyPsbt.signInput(0, sortedCovenants[1]);
+  // slashingOrLostKeyPsbt.signInput(0, sortedCovenants[2]);
+  // slashingOrLostKeyPsbt.signInput(0, sortedCovenants[3]);
+  // slashingOrLostKeyPsbt.signInput(0, sortedCovenants[4]);
   slashingOrLostKeyPsbt.finalizeInput(0, slashingFinalizer);
   const slashingTx = slashingOrLostKeyPsbt.extractTransaction(true);
   console.log(fee);
@@ -208,7 +226,7 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
   const unStaker = new UnStaker(
     address,
     tx,
-    covenants_keyPairs.map((c) => c.publicKey.toString("hex")),
+    covs,
     qorum
   );
   // SETUP leaves
@@ -218,39 +236,19 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
     feeEstimate: fee,
     BWoD,
   } = await unStaker.getUnsignedBurnWithoutDAppPsbt(address, feeRate, rbf);
-  const burnWithoutDAppFinalizer = (_inputIndex: number, input: PsbtInput) => {
-    const empty_vector = Buffer.from([]);
-    const scriptSolution = [
-      // input.tapScriptSig![5].signature,
-      empty_vector,
-      input.tapScriptSig![4].signature,
-      // input.tapScriptSig![3].signature,
-      empty_vector,
-      input.tapScriptSig![2].signature,
-      input.tapScriptSig![1].signature,
-      input.tapScriptSig![0].signature,
-    ];
-    const witness = scriptSolution
-      .concat(BWoD.script)
-      .concat(BWoD.controlBlock);
-    return {
-      finalScriptWitness: witnessStackToScriptWitness(witness),
-    };
-  };
-
+  console.log(burnWithoutDAppPsbt.toBase64());
+  // convert to Tx hex 
   burnWithoutDAppPsbt.signInput(0, staker_keyPair);
-  const staker_signature = burnWithoutDAppPsbt.data.inputs[0].tapScriptSig![0].signature;
-  console.log(staker_signature.toString("hex"));
-  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[0]);
-  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[1]);
-  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[2]);
-  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[3]);
-  // burnWithoutDAppPsbt.signInput(0, sortedCovenants[4]);
+  // const staker_signature =
+  //   burnWithoutDAppPsbt.data.inputs[0].tapScriptSig![0].signature;
+  // console.log(staker_signature.toString("hex"));
+  // create HDkeypair from passpharse
+  burnWithoutDAppPsbt.signInputHD  
   burnWithoutDAppPsbt.finalizeInput(0);
   const burnWithoutDAppTx = burnWithoutDAppPsbt.extractTransaction(true);
-  console.log(burnWithoutDAppTx.toHex());
-  console.log(fee);
-  console.log(burnWithoutDAppTx.virtualSize());
+  // console.log(burnWithoutDAppTx.toHex());
+  // console.log(fee);
+  // console.log(burnWithoutDAppTx.virtualSize());
   if (option === "test") {
     API(process.env.url!, "testmempoolaccept", [[burnWithoutDAppTx.toHex()]]); // Enable if want to push
   } else if (option === "send") {
@@ -261,8 +259,8 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
 }
 
 const tx =
-  "020000000001015ac71b7bf22c8d46dec05f587ba0e1721e7a59a9d0f2610e577fadf4ea3ee7040300000000fdffffff0410270000000000002251207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be910000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a3800000000000000016bb9f03858c8ed34cb6ceb2bb26b17da80bc512cb5065df90c390a7c5318f822b0fa96cde2f3305100000000000003e805040c000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b2402473044022060b86ad465133d0ff6141d65b783b7162b83234f13c1f383a492f79cc78fc11102205981dedab6a8aadfea27fafb29cc1f506fb50690c6e39af855f97732f2acb22e0121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
-vault();
-// burning(tx);
+  "020000000001012e4968742cc31a0564193bf786625f1728e2ded6cfa5b36c8810154b27d33c120300000000fdffffff0410270000000000002251202a7c0dba8b611c6f824c83c1551c8c79dfef95ab91ed48c95f414487b4957dee0000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a380000000000aa36a7130c4810d57140e1e62967cbf742caeae91b6ece768e8de8cf0c7747d41f75f83c914a19c5921cf30000000000002710092a0a000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b240247304402202ce80a153a3e0da2357382ed80b71a99e4120c6224cd69bbeb8badbb9c523135022037bf3e22b397d6ecd8661aa8162cc314f4a5102433946fc5ebe60da12afee5100121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
+// vault("send");
+burning(tx,"test");
 // slashingOrLostKey(tx);
-// burnWithoutDApp(tx);
+// burnWithoutDApp(tx, "test");
