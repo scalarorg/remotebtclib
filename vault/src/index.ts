@@ -9,13 +9,11 @@ import {
   BtcXOnlyPubkeyLength,
   EthAddressLength,
 } from "./utils/constants";
-import * as ecc from "tiny-secp256k1";
-import ECPairFactory from "ecpair";
 import { Leaf } from "./types/spendType";
-// Initialize the ECC library
-bitcoin.initEccLib(ecc);
 
-const ECPair = ECPairFactory(ecc);
+export type { UTXO } from "./types/utxo";
+export { getUTXOs } from "./utils/api";
+
 export class Staker {
   #stakerAddress: string;
   #stakerPubkey: string;
@@ -200,7 +198,7 @@ export class Staker {
     // if it in form : xxxxx.yyyyy
     // we need to ensure that len(xxxxx) <= 8 and len(yyyyy) <= 8
     const mintingAmountBuffer = Buffer.alloc(8);
-    mintingAmountBuffer.writeBigUInt64BE(BigInt(this.#mintingAmount))
+    mintingAmountBuffer.writeBigUInt64BE(BigInt(this.#mintingAmount));
     return new unsignedTransaction.VaultTransaction(
       this.#stakerAddress,
       stakerPubkeyBuffer,
