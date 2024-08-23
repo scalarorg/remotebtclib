@@ -281,7 +281,6 @@ export class VaultTransaction {
       tapLeafScript: [tapLeavesScript.burningLeaf],
       sequence: sequence, // big endian
     });
-
     txb.addOutputs([
       {
         address: burnAddress,
@@ -508,7 +507,6 @@ export class VaultTransaction {
       tapLeafScript: [random_tapLeaves.burningLeaf],
       sequence: sequence, // big endian
     });
-
     txb.addOutputs([
       {
         address: burnAddress,
