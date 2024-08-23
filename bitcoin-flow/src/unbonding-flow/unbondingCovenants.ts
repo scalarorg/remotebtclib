@@ -51,7 +51,7 @@ export async function unbondingCovenants(
   const signedPsbt = await processPsbt(
     stakerSig,
     covSigs,
-    stakerSignedPsbt,
+    unsignedPsbt,
     BWoD
   );
 
