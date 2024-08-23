@@ -11,6 +11,7 @@ import {
 } from "./utils/constants";
 import { Leaf } from "./types/spendType";
 
+export type { Leaf } from "./types/spendType";
 export type { UTXO } from "./types/utxo";
 export { getUTXOs } from "./utils/api";
 

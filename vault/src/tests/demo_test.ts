@@ -12,7 +12,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
 // Initialize the ECC library
-bitcoin.initEccLib(ecc);
+// bitcoin.initEccLib(ecc);
 
 const ECPair = ECPairFactory(ecc);
 
@@ -20,6 +20,7 @@ const networkType = bitcoin.networks.testnet;
 const address = "tb1qpzmmqzc0wgx0tnp70cu24ts62u4ev2ey8xlgn3";
 // 51207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be91
 const staker_keyPair = ECPair.fromWIF(process.env.stakerWIF!, networkType);
+console.log(staker_keyPair.publicKey.toString("hex"));
 const protocol_keyPair = ECPair.fromWIF(process.env.protocolWIF!, networkType);
 const covenant_1_keyPair = ECPair.fromWIF(
   process.env.covenant1WIF!,
@@ -42,24 +43,34 @@ const covenant_5_keyPair = ECPair.fromWIF(
   networkType
 );
 
-// const covenants_keyPairs = [
-//   covenant_1_keyPair,
-//   covenant_2_keyPair,
-//   covenant_3_keyPair,
-//   covenant_4_keyPair,
-//   covenant_5_keyPair,
-// ];
-// const covs = covenants_keyPairs.map((c) => c.publicKey.toString("hex"));
-const covs = [
-  "035b004b4307b5bc768e2d3a359a34255369a00eda504ba10fc9aeac8db525098b",
-  "02104f3fd30f56908568cab4a0c5bb2345561bfad7bf82bd0b1bfda7dbddafffd2",
-  "022c9a3bd80bf81edf06c840456b3a52e69daf46e987b6493f8d51197e32ba5bdb",
-  "0359bcff3ec8b799430944180772867534ba5cae4757e0354a099cd98f8fe1b75e",
-  "0227f8ffdb860f72e36bc98847dafecf09cd5fe3eb9964cecd51e564cbd7f8f5b9",
+const covenants_keyPairs = [
+  covenant_1_keyPair,
+  covenant_2_keyPair,
+  covenant_3_keyPair,
+  covenant_4_keyPair,
+  covenant_5_keyPair,
 ];
+const covs = covenants_keyPairs.map((c) => c.publicKey.toString("hex"));
+console.log(covs);
+const sorted_covenants = covenants_keyPairs.sort((a, b) =>
+  Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey))
+);
+// const covs = [
+//   "035b004b4307b5bc768e2d3a359a34255369a00eda504ba10fc9aeac8db525098b",
+//   "02104f3fd30f56908568cab4a0c5bb2345561bfad7bf82bd0b1bfda7dbddafffd2",
+//   "022c9a3bd80bf81edf06c840456b3a52e69daf46e987b6493f8d51197e32ba5bdb",
+//   "0359bcff3ec8b799430944180772867534ba5cae4757e0354a099cd98f8fe1b75e",
+//   "0227f8ffdb860f72e36bc98847dafecf09cd5fe3eb9964cecd51e564cbd7f8f5b9",
+// ];
 
 // // take p2wpkh of each covs :
-console.log(covs.map((c) => bitcoin.payments.p2wpkh({ pubkey: Buffer.from(c, "hex"), network: networkType }).address));
+// console.log(
+//   sorted_covenants.map(
+//     (c) =>
+//       bitcoin.payments.p2wpkh({ pubkey: c.publicKey, network: networkType })
+//         .address
+//   )
+// );
 
 const qorum = 3;
 
@@ -118,44 +129,27 @@ async function vault(option: string = "test") {
 }
 
 async function burning(tx: string, option: string = "test") {
-  const unStaker = new UnStaker(
-    address,
-    tx,
-    covs,
-    qorum
-  );
+  const unStaker = new UnStaker(address, tx, covs, qorum);
   //////////////////////////// Burning ////////////////////////////
   const {
     psbt: burningPsbt,
     feeEstimate: fee,
     burningLeaf,
   } = await unStaker.getUnsignedBurningPsbt(address, feeRate, rbf);
-  const burningFinalizer = (_inputIndex: number, input: PsbtInput) => {
-    const empty_vector = Buffer.from([]);
-    const scriptSolution = [
-      input.tapScriptSig![1].signature,
-      input.tapScriptSig![0].signature,
-    ];
-    const witness = scriptSolution
-      .concat(burningLeaf.script)
-      .concat(burningLeaf.controlBlock);
-    return {
-      finalScriptWitness: witnessStackToScriptWitness(witness),
-    };
-  };
-  burningPsbt.signInput(0, staker_keyPair);
+  // burningPsbt.signInput(0, staker_keyPair);
+  // console.log(burningPsbt.data.inputs[0].witnessUtxo?.script.toString("hex"));
   console.log(burningPsbt.toBase64());
   // const staker_signature =
   //   burningPsbt.data.inputs[0].tapScriptSig![0].signature;
   // console.log(staker_signature.toString("hex"));
-  burningPsbt.finalizeInput(0)
+  burningPsbt.finalizeInput(0);
+  // console.log(burningPsbt.data.inputs[0])
   // burningPsbt.signInput(0, protocol_keyPair);
   // const test = burningPsbt.toBase64();
   // const test_new_psbt = bitcoin.Psbt.fromBase64(test);
   // test_new_psbt.signInput(0, protocol_keyPair);
   // test_new_psbt.finalizeInput(0);
   const burningTx = burningPsbt.extractTransaction(true);
-  console.log(burningPsbt.toBase64());
   console.log(fee);
   console.log(burningTx.virtualSize());
   if (option === "test") {
@@ -168,12 +162,7 @@ async function burning(tx: string, option: string = "test") {
 }
 
 async function slashingOrLostKey(tx: string, option: string = "test") {
-  const unStaker = new UnStaker(
-    address,
-    tx,
-    covs,
-    qorum
-  );
+  const unStaker = new UnStaker(address, tx, covs, qorum);
   // SETUP leaves
   //////////////////////////// Slashing ////////////////////////////
   const {
@@ -223,12 +212,7 @@ async function slashingOrLostKey(tx: string, option: string = "test") {
 }
 
 async function burnWithoutDApp(tx: string, option: string = "test") {
-  const unStaker = new UnStaker(
-    address,
-    tx,
-    covs,
-    qorum
-  );
+  const unStaker = new UnStaker(address, tx, covs, qorum);
   // SETUP leaves
   //////////////////////////// Burning Without DApp ////////////////////////////
   const {
@@ -236,14 +220,15 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
     feeEstimate: fee,
     BWoD,
   } = await unStaker.getUnsignedBurnWithoutDAppPsbt(address, feeRate, rbf);
-  console.log(burnWithoutDAppPsbt.toBase64());
   // convert to Tx hex 
   burnWithoutDAppPsbt.signInput(0, staker_keyPair);
-  // const staker_signature =
-  //   burnWithoutDAppPsbt.data.inputs[0].tapScriptSig![0].signature;
-  // console.log(staker_signature.toString("hex"));
-  // create HDkeypair from passpharse
-  burnWithoutDAppPsbt.signInputHD  
+  console.log(123)
+  burnWithoutDAppPsbt.signInput(0,covenant_1_keyPair)
+  // burnWithoutDAppPsbt.signInput(0,covenant_2_keyPair)
+  // burnWithoutDAppPsbt.signInput(0,covenant_3_keyPair)
+  // burnWithoutDAppPsbt.signInput(0,covenant_4_keyPair)
+  // burnWithoutDAppPsbt.signInput(0,covenant_5_keyPair)
+  console.log(burnWithoutDAppPsbt.data.inputs[0].tapScriptSig?.map((x) => x.signature.toString("hex")));
   burnWithoutDAppPsbt.finalizeInput(0);
   const burnWithoutDAppTx = burnWithoutDAppPsbt.extractTransaction(true);
   // console.log(burnWithoutDAppTx.toHex());
@@ -259,7 +244,7 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
 }
 
 const tx =
-  "020000000001012e4968742cc31a0564193bf786625f1728e2ded6cfa5b36c8810154b27d33c120300000000fdffffff0410270000000000002251202a7c0dba8b611c6f824c83c1551c8c79dfef95ab91ed48c95f414487b4957dee0000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a380000000000aa36a7130c4810d57140e1e62967cbf742caeae91b6ece768e8de8cf0c7747d41f75f83c914a19c5921cf30000000000002710092a0a000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b240247304402202ce80a153a3e0da2357382ed80b71a99e4120c6224cd69bbeb8badbb9c523135022037bf3e22b397d6ecd8661aa8162cc314f4a5102433946fc5ebe60da12afee5100121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
+  "02000000000101bb9eea06b09b5b73e1bcb6bf64a139ea5f5221aef05aad37ded744a29dc3abef0100000000fdffffff0410270000000000002251207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be910000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a380000000000aa36a7469f0a64d5ede64fcaf161952657aaf4059040de768e8de8cf0c7747d41f75f83c914a19c5921cf30000000000002710a85f0e000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b240247304402202243056215e71a6b67c6d14562bb293c989539dae2498e85116c747730ccf76f02200dee6072ddce298bf9fbc3be6e6f09bef7ff36060dadf5be4d0ab57e33d2fa220121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
 // vault("send");
 burning(tx,"test");
 // slashingOrLostKey(tx);
