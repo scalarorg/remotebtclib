@@ -1,5 +1,5 @@
 # remotebtclib
-
+## Notice: this lib do create transaction in happy case, we not verify it yet, need to validate the input data and parse data when create vault transaction, spending transaction , etc ,...
 Create vault transaction:
 
 ```typescript
