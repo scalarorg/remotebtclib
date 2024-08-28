@@ -21,16 +21,13 @@ async function API(url: string, method: string, params: any) {
   const result = await axios
     .post(url, data, config)
     .then((response) => {
-      console.log(JSON.stringify(response.data));
       return response.data;
     })
     .catch((error) => {
       if (error.response) {
-        console.log(error.response);
-        console.log("Status:", error.response.status);
         return error.response;
       } else {
-        console.log(error);
+        return error;
       }
     });
 
