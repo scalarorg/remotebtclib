@@ -9,7 +9,7 @@ export interface SpendingLeaves {
   burnWithoutDAppLeaf: Leaf;
 }
 
-export interface EmbeddedDataScript{
+export interface EmbeddedDataScript {
   stakingDataScript: Buffer;
   mintingDataScript: Buffer;
 }

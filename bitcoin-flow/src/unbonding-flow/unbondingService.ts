@@ -8,7 +8,7 @@ export async function unbondingService(
   quorum: number,
   receiveAddress: string,
   feeRate: number,
-  rbf: boolean
+  rbf: boolean,
 ) {
   // Step 1: staker create unbonding transaction,
   // sign it and send with burning request to ETH
@@ -23,7 +23,7 @@ export async function unbondingService(
   const stakerSignedPsbt = await utils.psbt.signPsbt(
     process.env.stakerWIF!,
     unsignedPsbt.toBase64(),
-    false
+    false,
   );
 
   // Step 2: this Psbt will be sent to bla bla ... then received by relayer of service dApp
@@ -33,7 +33,7 @@ export async function unbondingService(
   const serviceSignedPsbt = await utils.psbt.signPsbt(
     process.env.serviceWIF!,
     stakerSignedPsbt.toBase64(),
-    true
+    true,
   );
 
   const hexTxfromPsbt = serviceSignedPsbt.extractTransaction().toHex();
