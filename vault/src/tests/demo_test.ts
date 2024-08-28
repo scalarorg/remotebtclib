@@ -1,14 +1,14 @@
-import { Staker, UnStaker } from "..";
+import { PsbtInput } from "bip174/src/lib/interfaces";
 import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import dotenv from "dotenv";
 import ECPairFactory from "ecpair";
 import * as ecc from "tiny-secp256k1";
-import { witnessStackToScriptWitness } from "../utils/bitcoin";
-import { PsbtInput } from "bip174/src/lib/interfaces";
+
+import { Staker, UnStaker } from "..";
 import { UTXO } from "../types/utxo";
 import { API, getUTXOs } from "../utils/api";
-
-import dotenv from "dotenv";
+import { witnessStackToScriptWitness } from "../utils/bitcoin";
 dotenv.config({ path: "../../.env" });
 
 // Initialize the ECC library
@@ -24,23 +24,23 @@ console.log(staker_keyPair.publicKey.toString("hex"));
 const protocol_keyPair = ECPair.fromWIF(process.env.protocolWIF!, networkType);
 const covenant_1_keyPair = ECPair.fromWIF(
   process.env.covenant1WIF!,
-  networkType
+  networkType,
 );
 const covenant_2_keyPair = ECPair.fromWIF(
   process.env.covenant2WIF!,
-  networkType
+  networkType,
 );
 const covenant_3_keyPair = ECPair.fromWIF(
   process.env.covenant3WIF!,
-  networkType
+  networkType,
 );
 const covenant_4_keyPair = ECPair.fromWIF(
   process.env.covenant4WIF!,
-  networkType
+  networkType,
 );
 const covenant_5_keyPair = ECPair.fromWIF(
   process.env.covenant5WIF!,
-  networkType
+  networkType,
 );
 
 const covenants_keyPairs = [
@@ -53,7 +53,7 @@ const covenants_keyPairs = [
 const covs = covenants_keyPairs.map((c) => c.publicKey.toString("hex"));
 console.log(covs);
 const sorted_covenants = covenants_keyPairs.sort((a, b) =>
-  Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey))
+  Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey)),
 );
 // const covs = [
 //   "035b004b4307b5bc768e2d3a359a34255369a00eda504ba10fc9aeac8db525098b",
@@ -93,7 +93,7 @@ const staker = new Staker(
   chainID,
   chainIdUserAddress,
   chainSmartContractAddress,
-  mintingAmount
+  mintingAmount,
 );
 // const sortedCovenants = covenants_keyPairs.sort((a, b) =>
 //   Buffer.compare(toXOnly(a.publicKey), toXOnly(b.publicKey))
@@ -110,7 +110,7 @@ async function vault(option: string = "test") {
       regularUTXOs,
       stakingAmount,
       feeRate,
-      rbf
+      rbf,
     );
 
   unsignedVaultPsbt.signAllInputs(staker_keyPair);
@@ -220,15 +220,19 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
     feeEstimate: fee,
     BWoD,
   } = await unStaker.getUnsignedBurnWithoutDAppPsbt(address, feeRate, rbf);
-  // convert to Tx hex 
+  // convert to Tx hex
   burnWithoutDAppPsbt.signInput(0, staker_keyPair);
-  console.log(123)
-  burnWithoutDAppPsbt.signInput(0,covenant_1_keyPair)
+  console.log(123);
+  burnWithoutDAppPsbt.signInput(0, covenant_1_keyPair);
   // burnWithoutDAppPsbt.signInput(0,covenant_2_keyPair)
   // burnWithoutDAppPsbt.signInput(0,covenant_3_keyPair)
   // burnWithoutDAppPsbt.signInput(0,covenant_4_keyPair)
   // burnWithoutDAppPsbt.signInput(0,covenant_5_keyPair)
-  console.log(burnWithoutDAppPsbt.data.inputs[0].tapScriptSig?.map((x) => x.signature.toString("hex")));
+  console.log(
+    burnWithoutDAppPsbt.data.inputs[0].tapScriptSig?.map((x) =>
+      x.signature.toString("hex"),
+    ),
+  );
   burnWithoutDAppPsbt.finalizeInput(0);
   const burnWithoutDAppTx = burnWithoutDAppPsbt.extractTransaction(true);
   // console.log(burnWithoutDAppTx.toHex());
@@ -246,6 +250,6 @@ async function burnWithoutDApp(tx: string, option: string = "test") {
 const tx =
   "02000000000101bb9eea06b09b5b73e1bcb6bf64a139ea5f5221aef05aad37ded744a29dc3abef0100000000fdffffff0410270000000000002251207f99d0801267696850236ed8a63bd386e151e4f5704c64ab070aa5e87299be910000000000000000476a4501020304002b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d61e1436122e3973468bd8776b8ca0645e37a5760c4a2be7796acb94cf312ce0d00000000000000003a6a380000000000aa36a7469f0a64d5ede64fcaf161952657aaf4059040de768e8de8cf0c7747d41f75f83c914a19c5921cf30000000000002710a85f0e000000000016001408b7b00b0f720cf5cc3e7e38aaae1a572b962b240247304402202243056215e71a6b67c6d14562bb293c989539dae2498e85116c747730ccf76f02200dee6072ddce298bf9fbc3be6e6f09bef7ff36060dadf5be4d0ab57e33d2fa220121032b122fd36a9db2698c39fb47df3e3fa615e70e368acb874ec5494e4236722b2d00000000";
 // vault("send");
-burning(tx,"test");
+burning(tx, "test");
 // slashingOrLostKey(tx);
 // burnWithoutDApp(tx, "test");

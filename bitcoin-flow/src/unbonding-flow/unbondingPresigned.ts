@@ -1,10 +1,11 @@
-import * as vault from "../../../vault/src/index";
-import * as utils from "../utils";
+import { PsbtInput } from "bip174/src/lib/interfaces";
 import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
-import { globalParams } from "../global-params";
-import { PsbtInput } from "bip174/src/lib/interfaces";
 import dotenv from "dotenv";
+
+import * as vault from "../../../vault/src/index";
+import { globalParams } from "../global-params";
+import * as utils from "../utils";
 dotenv.config({ path: "../.env" });
 
 interface signRequest {
@@ -21,7 +22,7 @@ export async function unbondingPresigned(
   quorum: number,
   receiveAddress: string,
   feeRate: number,
-  rbf: boolean
+  rbf: boolean,
 ) {
   // Step 1: staker create unbonding transaction,
   // sign it and send with burning request to ETH
@@ -33,14 +34,14 @@ export async function unbondingPresigned(
   } = await unStaker.getUnsignedSlashingOrLostKeyPsbt(
     receiveAddress,
     feeRate,
-    rbf
+    rbf,
   );
 
   // simulate staker sign the psbt
   const stakerSignedPsbt = await utils.psbt.signPsbt(
     process.env.stakerWIF!,
     unsignedPsbt.toBase64(),
-    false
+    false,
   );
 
   // Step 2: this Psbt will be sent, we will try to collect signature of Service and Scalar
@@ -50,7 +51,7 @@ export async function unbondingPresigned(
   const serviceSignedPsbt = await utils.psbt.signPsbt(
     process.env.serviceWIF!,
     unsignedPsbt.toBase64(),
-    false
+    false,
   );
 
   const serviceSig = utils.psbt.extractSignature(serviceSignedPsbt);
@@ -63,7 +64,7 @@ export async function unbondingPresigned(
     serviceSig,
     covSigs,
     unsignedPsbt,
-    SolLeaf
+    SolLeaf,
   );
 
   const hexTxfromPsbt = signedPsbt.extractTransaction().toHex();
@@ -73,9 +74,10 @@ export async function unbondingPresigned(
 
 async function processUnbondingCovenants(
   stakerSignedPsbt: bitcoin.Psbt,
-  stakerSig: Buffer
+  stakerSig: Buffer,
 ) {
-  const stakingOutputPkScriptHex = utils.psbt.extractOutputPkHex(stakerSignedPsbt);
+  const stakingOutputPkScriptHex =
+    utils.psbt.extractOutputPkHex(stakerSignedPsbt);
   let covSigs = [];
   for (let i = 0; i < globalParams.covPublicKeys.length; i++) {
     const request: signRequest = {
@@ -95,7 +97,7 @@ async function processPsbt(
   serviceSig: Buffer,
   covSigs: Buffer[],
   stakerSignedPsbt: bitcoin.Psbt,
-  leaf: vault.Leaf
+  leaf: vault.Leaf,
 ) {
   const covSigMap = new Map<string, Buffer>();
   for (let i = 0; i < globalParams.covPublicKeys.length; i++) {
@@ -104,8 +106,8 @@ async function processPsbt(
   const sortedCovPublicKeys = globalParams.covPublicKeys.sort((a, b) =>
     Buffer.compare(
       toXOnly(Buffer.from(a, "hex")),
-      toXOnly(Buffer.from(b, "hex"))
-    )
+      toXOnly(Buffer.from(b, "hex")),
+    ),
   ); // sort by xOnly
   const sortedCovSigs = sortedCovPublicKeys.map((key) => covSigMap.get(key)!);
 
@@ -131,12 +133,12 @@ async function processPsbt(
 
 async function processRequestSign(
   request: signRequest,
-  index: number
+  index: number,
 ): Promise<Buffer> {
   const signedPsbt = await utils.psbt.signPsbt(
     process.env[`covenant${index + 1}WIF`]!,
     request.unbondingPsbtBase64,
-    false
+    false,
   );
   const sig = utils.psbt.extractSignature(signedPsbt);
   return sig;

@@ -11,7 +11,7 @@ const ECPair = ECPairFactory(ecc);
 export async function signPsbt(
   WIF: string,
   psbtBase64: string,
-  finalize: boolean = false
+  finalize: boolean = false,
 ): Promise<bitcoin.Psbt> {
   const keyPair = ECPair.fromWIF(WIF, bitcoin.networks.testnet);
   const psbt = bitcoin.Psbt.fromBase64(psbtBase64);
@@ -59,12 +59,11 @@ export function witnessStackToScriptWitness(witness: Array<Buffer>): Buffer {
 
 export function extractOutputPkHex(SignedPsbt: bitcoin.Psbt) {
   const stakingOutputPk =
-  SignedPsbt.data.inputs[0].witnessUtxo!.script.toString("hex");
+    SignedPsbt.data.inputs[0].witnessUtxo!.script.toString("hex");
   return stakingOutputPk;
 }
 
 export function extractSignature(SignedPsbt: bitcoin.Psbt): Buffer {
-  const stakerSignature =
-  SignedPsbt.data.inputs[0].tapScriptSig![0].signature;
+  const stakerSignature = SignedPsbt.data.inputs[0].tapScriptSig![0].signature;
   return stakerSignature;
 }
