@@ -1,8 +1,9 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
-import { VaultScript } from "../types/stakingType";
+
 import { LEAF_VERSION_TAPSCRIPT, NUMS } from "../bip/bip341";
 import { EmbeddedDataScript, Leaf, SpendingLeaves } from "../types/spendType";
+import { VaultScript } from "../types/stakingType";
 
 export class StakerScript {
   #stakerPubKey: Buffer;
@@ -26,7 +27,7 @@ export class StakerScript {
     chainID: Buffer,
     chainIdUserAddress: Buffer,
     chainSmartContractAddress: Buffer,
-    mintingAmount: Buffer
+    mintingAmount: Buffer,
   ) {
     this.#stakerPubKey = stakerPubkey;
     this.#protocolPubkey = protocolPubkey;
@@ -57,7 +58,9 @@ export class StakerScript {
     ];
 
     // keys must be sorted
-    const sortedPks = this.#covenantPubkey.sort((a,b) => Buffer.compare(toXOnly(a), toXOnly(b)));
+    const sortedPks = this.#covenantPubkey.sort((a, b) =>
+      Buffer.compare(toXOnly(a), toXOnly(b)),
+    );
     // verify there are no duplicates
     for (let i = 0; i < sortedPks.length - 1; ++i) {
       if (sortedPks[i].equals(sortedPks[i + 1])) {
@@ -84,7 +87,9 @@ export class StakerScript {
     ];
 
     // keys must be sorted
-    const sortedPks = this.#covenantPubkey.sort((a,b) => Buffer.compare(toXOnly(a), toXOnly(b)));
+    const sortedPks = this.#covenantPubkey.sort((a, b) =>
+      Buffer.compare(toXOnly(a), toXOnly(b)),
+    );
     // verify there are no duplicates
     for (let i = 0; i < sortedPks.length - 1; ++i) {
       if (sortedPks[i].equals(sortedPks[i + 1])) {
@@ -107,13 +112,13 @@ export class StakerScript {
 
   stakingDataScript(): Buffer {
     const data_staking = Buffer.concat([
-      this.#tag, 
+      this.#tag,
       this.#version,
       toXOnly(this.#stakerPubKey),
       toXOnly(this.#protocolPubkey),
     ]);
     const embedded_staking_data = [bitcoin.opcodes.OP_RETURN, data_staking];
-    const staking_script = bitcoin.script.compile(embedded_staking_data); 
+    const staking_script = bitcoin.script.compile(embedded_staking_data);
     return staking_script;
   }
 
@@ -151,7 +156,7 @@ export class SpendScript {
     slashingOrLostKeyScript: Buffer,
     burnWithoutDAppScript: Buffer,
     tapTree: any,
-    networkType: bitcoin.Network
+    networkType: bitcoin.Network,
   ) {
     this.#burningScript = burningScript;
     this.#slashingOrLostKeyScript = slashingOrLostKeyScript;
@@ -196,7 +201,7 @@ export class EmbeddedScript {
   constructor(
     stakingDataScript: Buffer,
     mintingDataScript: Buffer,
-    networkType: bitcoin.Network
+    networkType: bitcoin.Network,
   ) {
     this.#stakingDataScript = stakingDataScript;
     this.#mintingDataScript = mintingDataScript;

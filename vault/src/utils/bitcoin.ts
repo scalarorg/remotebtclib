@@ -1,11 +1,12 @@
 import * as ecc from "@bitcoinerlab/secp256k1";
-import bs58check from "bs58check";
-import { ECPairFactory, ECPairInterface } from "ecpair";
 import * as bitcoin from "bitcoinjs-lib";
 import { Network, Psbt } from "bitcoinjs-lib";
-import { UTXO } from "../types/utxo";
-import { isTaprootInput, toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import { tapTweakHash } from "bitcoinjs-lib/src/payments/bip341";
+import { isTaprootInput, toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import bs58check from "bs58check";
+import { ECPairFactory, ECPairInterface } from "ecpair";
+
+import { UTXO } from "../types/utxo";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -26,8 +27,8 @@ export function logToJSON(any: any) {
         }
         return v;
       },
-      2
-    )
+      2,
+    ),
   );
 }
 
@@ -182,7 +183,7 @@ export function toPsbt({
             ...input,
             sequence: 0xfffffffd,
           }
-        : input
+        : input,
     );
   }
   psbt.addOutputs(tx.outputs);
@@ -381,7 +382,7 @@ export function signPsbtWithRandomWIF({
         addressType,
         pubkey: wallet.pubkey,
         script: output,
-      })
+      }),
     );
   });
   outputs.forEach((v) => {
@@ -395,7 +396,7 @@ export function signPsbtWithRandomWIF({
 export function publicKeyToPayment(
   publicKey: Buffer,
   type: AddressType,
-  network?: Network
+  network?: Network,
 ) {
   if (type === AddressType.P2PKH) {
     return bitcoin.payments.p2pkh({
@@ -429,7 +430,7 @@ export function publicKeyToPayment(
 export function publicKeyToAddress(
   publicKey: Buffer,
   type: AddressType,
-  network?: Network
+  network?: Network,
 ) {
   const payment = publicKeyToPayment(publicKey, type, network);
   return payment.address!;
@@ -471,7 +472,7 @@ export class Wallet {
   constructor(
     wif: string,
     network: Network,
-    addressType: AddressType = AddressType.P2WPKH
+    addressType: AddressType = AddressType.P2WPKH,
   ) {
     const keyPair = ECPair.fromWIF(wif, network);
     this._keyPair = keyPair;
@@ -533,7 +534,6 @@ export class Wallet {
 }
 
 function tweakSigner(signer: bitcoin.Signer, opts: any = {}): bitcoin.Signer {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   let privateKey: Uint8Array | undefined = signer.privateKey!;
   if (!privateKey) {
@@ -545,7 +545,7 @@ function tweakSigner(signer: bitcoin.Signer, opts: any = {}): bitcoin.Signer {
 
   const tweakedPrivateKey = ecc.privateAdd(
     privateKey,
-    tapTweakHash(toXOnly(signer.publicKey), opts.tweakHash)
+    tapTweakHash(toXOnly(signer.publicKey), opts.tweakHash),
   );
   if (!tweakedPrivateKey) {
     throw new Error("Invalid tweaked private key!");
@@ -588,7 +588,7 @@ const OUTPUT_BYTES_BASE = 43;
 export function calcP2TRFee(
   feeRate: number,
   inputs: number,
-  outputs: Output[]
+  outputs: Output[],
 ): number {
   let outputWithOPReturn = 0;
   let normalOutput = 0;
@@ -608,18 +608,18 @@ export function calcP2TRFee(
       (BASE_BYTES +
         inputs * INPUT_BYTES_BASE +
         normalOutput +
-        outputWithOPReturn)
+        outputWithOPReturn),
   );
 }
 
 export function calcSimpleP2TRFee(
   feeRate: number,
   inputs: number,
-  outputs: number
+  outputs: number,
 ): number {
   return Math.ceil(
     feeRate *
-      (BASE_BYTES + inputs * INPUT_BYTES_BASE + outputs * OUTPUT_BYTES_BASE)
+      (BASE_BYTES + inputs * INPUT_BYTES_BASE + outputs * OUTPUT_BYTES_BASE),
   );
 }
 
@@ -627,14 +627,13 @@ export function calcNSignatureP2TRFee(
   feeRate: number,
   inputs: number,
   outputs: number,
-  n: number
+  n: number,
 ): number {
   return Math.ceil(
     feeRate *
       (BASE_BYTES +
         inputs * (INPUT_BYTES_BASE + n * 64) +
-        outputs * OUTPUT_BYTES_BASE
-      )
+        outputs * OUTPUT_BYTES_BASE),
   );
 }
 
@@ -677,4 +676,10 @@ export function witnessStackToScriptWitness(witness: Array<Buffer>): Buffer {
   writeVector(witness);
 
   return buffer;
+}
+
+export function getPsbtByHex(hex: string, address: string): Psbt {
+  const [_, network] = getAddressType(address);
+  const psbt = Psbt.fromHex(hex, { network });
+  return psbt;
 }

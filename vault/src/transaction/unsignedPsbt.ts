@@ -1,13 +1,14 @@
-import * as scripts from "./scripts";
-import { NUMS } from "../bip/bip341";
-import * as bitcoin from "bitcoinjs-lib";
-import { EmbeddedDataScript, SpendingLeaves } from "../types/spendType";
-import { getAddressType, toPsbt } from "../utils/bitcoin";
-import { UTXO } from "../types/utxo";
-import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
-import { prepareTx } from "../utils/bitcoin";
 import * as ecc from "@bitcoinerlab/secp256k1";
+import * as bitcoin from "bitcoinjs-lib";
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import { ECPairFactory, ECPairInterface } from "ecpair";
+
+import { NUMS } from "../bip/bip341";
+import { EmbeddedDataScript, SpendingLeaves } from "../types/spendType";
+import { UTXO } from "../types/utxo";
+import { getAddressType, prepareTx, toPsbt } from "../utils/bitcoin";
+
+import * as scripts from "./scripts";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -23,7 +24,7 @@ export async function getTaprootAddress(
   chainIdUserAddress: Buffer,
   chainSmartContractAddress: Buffer,
   mintingAmount: Buffer,
-  networkType: bitcoin.Network
+  networkType: bitcoin.Network,
 ): Promise<bitcoin.payments.Payment> {
   const tapLeaves = new scripts.StakerScript(
     stakerPubKey,
@@ -35,7 +36,7 @@ export async function getTaprootAddress(
     chainID,
     chainIdUserAddress,
     chainSmartContractAddress,
-    mintingAmount
+    mintingAmount,
   ).buildingScript();
   const tapTree: any = [
     {
@@ -70,7 +71,7 @@ export async function getTapLeafScript(
   chainIdUserAddress: Buffer,
   chainSmartContractAddress: Buffer,
   mintingAmount: Buffer,
-  networkType: bitcoin.Network
+  networkType: bitcoin.Network,
 ): Promise<SpendingLeaves> {
   const tapLeaves = new scripts.StakerScript(
     stakerPubKey,
@@ -82,7 +83,7 @@ export async function getTapLeafScript(
     chainID,
     chainIdUserAddress,
     chainSmartContractAddress,
-    mintingAmount
+    mintingAmount,
   ).buildingScript();
   const tapTree: any = [
     {
@@ -102,7 +103,7 @@ export async function getTapLeafScript(
     tapLeaves.slashingOrLostKeyScript,
     tapLeaves.burnWithoutDAppScript,
     tapTree,
-    networkType
+    networkType,
   ).bulidingLeaves();
   return tapScripts;
 }
@@ -118,7 +119,7 @@ export async function getEmbeddedScript(
   chainIdUserAddress: Buffer,
   chainSmartContractAddress: Buffer,
   mintingAmount: Buffer,
-  networkType: bitcoin.Network
+  networkType: bitcoin.Network,
 ): Promise<EmbeddedDataScript> {
   const VaultScript = new scripts.StakerScript(
     stakerPubKey,
@@ -130,13 +131,13 @@ export async function getEmbeddedScript(
     chainID,
     chainIdUserAddress,
     chainSmartContractAddress,
-    mintingAmount
+    mintingAmount,
   ).buildingScript();
 
   const embeddedScript = new scripts.EmbeddedScript(
     VaultScript.stakingDataScript,
     VaultScript.mintingDataScript,
-    networkType
+    networkType,
   ).buildEmbeddedScript();
   return embeddedScript;
 }
@@ -168,7 +169,7 @@ export class VaultTransaction {
     chainSmartContractAddress: Buffer,
     mintingAmount: Buffer,
     networkType: bitcoin.Network,
-    enableRBF: boolean = true
+    enableRBF: boolean = true,
   ) {
     this.#stakerAddress = stakerAddress;
     this.#stakerPubkey = stakerPubkey;
@@ -429,7 +430,7 @@ export class VaultTransaction {
       random_covenant_keyPair.push(
         ECPair.makeRandom({
           network: this.#networkType,
-        })
+        }),
       );
     }
     const random_script_p2tr = await getTaprootAddress(
@@ -443,7 +444,7 @@ export class VaultTransaction {
       this.#chainIdUserAddress,
       this.#chainSmartContractAddress,
       this.#mintingAmount,
-      this.#networkType
+      this.#networkType,
     );
     const random_tapLeaves = await getTapLeafScript(
       random_staker_keyPair.publicKey,
@@ -456,7 +457,7 @@ export class VaultTransaction {
       this.#chainIdUserAddress,
       this.#chainSmartContractAddress,
       this.#mintingAmount,
-      this.#networkType
+      this.#networkType,
     );
     return {
       random_staker_keyPair,
@@ -644,7 +645,7 @@ export class VaultTransaction {
       this.#chainIdUserAddress,
       this.#chainSmartContractAddress,
       this.#mintingAmount,
-      this.#networkType
+      this.#networkType,
     );
     return script_p2tr;
   }
@@ -660,7 +661,7 @@ export class VaultTransaction {
       this.#chainIdUserAddress,
       this.#chainSmartContractAddress,
       this.#mintingAmount,
-      this.#networkType
+      this.#networkType,
     );
     return tapScripts;
   }
@@ -677,7 +678,7 @@ export class VaultTransaction {
       this.#chainIdUserAddress,
       this.#chainSmartContractAddress,
       this.#mintingAmount,
-      this.#networkType
+      this.#networkType,
     );
     return embeddedScript;
   }

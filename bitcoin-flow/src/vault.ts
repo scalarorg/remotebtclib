@@ -1,11 +1,12 @@
-import * as bitcoin from "bitcoinjs-lib";
-import * as vault from "../../vault/src/index";
+import dotenv from "dotenv";
 import ECPairFactory from "ecpair";
 import * as ecc from "tiny-secp256k1";
-import * as utils from "./utils";
-import { globalParams, globalNetworkType } from "./global-params";
 
-import dotenv from "dotenv";
+import * as vault from "../../vault/src/index";
+
+import { globalNetworkType, globalParams } from "./global-params";
+import * as utils from "./utils";
+
 dotenv.config({ path: "../.env" });
 const ECPair = ECPairFactory(ecc);
 
@@ -39,38 +40,38 @@ async function vaultFlow() {
     chainID,
     chainIdUserAddress,
     chainSmartContractAddress,
-    mintingAmount
+    mintingAmount,
   );
   const regularUTXOs: vault.UTXO[] = await vault.getUTXOs(stakerAddress); // Mempool call api
   const stakingAmount = 10000; // in statoshis
-  const feeRate = (await utils.mempool.getFeesRecommended()).fastestFee; // Get this from Mempool API
+  const feeRate = (await utils.mempool.getFeesRecommended("testnet"))
+    .fastestFee; // Get this from Mempool API
   const rbf = true; // Replace by fee, need to be true if we want to replace the transaction when the fee is low
   const { psbt: unsignedVaultPsbt, feeEstimate: fee } =
     await staker.getUnsignedVaultPsbt(
       regularUTXOs,
       stakingAmount,
       feeRate,
-      rbf
+      rbf,
     );
   // Simulate signing
   const signedPsbt = await utils.psbt.signPsbt(
     process.env.stakerWIF!,
     unsignedVaultPsbt.toBase64(),
-    true
+    true,
   );
   // --- Sign with staker
   const hexTxfromPsbt = signedPsbt.extractTransaction().toHex();
 
   console.log("fee: ", fee);
-  console.log(hexTxfromPsbt) // log it for the unbonding.ts
-
+  console.log(hexTxfromPsbt); // log it for the unbonding.ts
 
   // UNISAT have api for user to sign this psbt and finalize it
   // this demo: https://demo.unisat.io/
   // It support sign psbt, push psbt or push tx to bitcoin network
 
   // --- Send to bitcoin network
-  
+
   // await utils.node.testMempoolAcceptance(process.env.url!, hexTxfromPsbt); // enalbe this line to test mempool acceptance
   await utils.node.sendToBitcoinNetwork(process.env.url!, hexTxfromPsbt); // enalbe this line to send to bitcoin network
 }
