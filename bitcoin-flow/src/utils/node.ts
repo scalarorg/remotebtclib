@@ -18,25 +18,29 @@ async function API(url: string, method: string, params: any) {
     },
   };
 
-  axios
+  const result = await axios
     .post(url, data, config)
     .then((response) => {
       console.log(JSON.stringify(response.data));
+      return response.data;
     })
     .catch((error) => {
       if (error.response) {
         console.log(error.response);
         console.log("Status:", error.response.status);
+        return error.response;
       } else {
         console.log(error);
       }
     });
+
+  return result;
 }
 
 export async function testMempoolAcceptance(url: string, tx: string) {
-  await API(url, "testmempoolaccept", [[tx]]);
+  return await API(url, "testmempoolaccept", [[tx]]);
 }
 
 export async function sendToBitcoinNetwork(url: string, tx: string) {
-  await API(url, "sendrawtransaction", [tx]);
+  return await API(url, "sendrawtransaction", [tx]);
 }
